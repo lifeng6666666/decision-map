@@ -1,0 +1,2812 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>真实决策地图 · Real Decision Maps</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700;900&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+:root {
+  --bg: #0c1017;
+  --bg-card: rgba(18, 24, 38, 0.92);
+  --bg-hover: rgba(28, 38, 58, 0.95);
+  --gold: #d4a853;
+  --gold-light: #f0d48a;
+  --gold-dim: rgba(212, 168, 83, 0.3);
+  --blue: #5b9aff;
+  --green: #34d399;
+  --red: #f87171;
+  --purple: #a78bfa;
+  --cyan: #22d3ee;
+  --orange: #fb923c;
+  --text: #d4dae6;
+  --text-dim: #7a8498;
+  --text-bright: #f0f2f7;
+  --border: rgba(212, 168, 83, 0.12);
+  --glow: 0 0 24px rgba(212, 168, 83, 0.25);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Noto Sans SC', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.header {
+  text-align: center;
+  padding: 32px 20px 12px;
+}
+.header h1 {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 34px;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--gold-light), var(--gold));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: 3px;
+}
+.header p {
+  color: var(--text-dim);
+  font-size: 13px;
+  margin-top: 6px;
+  font-weight: 300;
+}
+
+/* ===== MODE BAR ===== */
+.mode-bar {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 20px 16px;
+  flex-wrap: wrap;
+}
+.mode-btn {
+  padding: 8px 20px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  font-family: 'Noto Sans SC', sans-serif;
+  transition: all 0.25s;
+}
+.mode-btn:hover { border-color: var(--gold-dim); background: var(--bg-hover); }
+.mode-btn.active {
+  border-color: var(--gold);
+  background: rgba(212, 168, 83, 0.12);
+  color: var(--gold-light);
+  box-shadow: var(--glow);
+}
+
+/* ===== CATEGORY FILTER BAR ===== */
+.category-bar {
+  display: none;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 20px 14px;
+  flex-wrap: wrap;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.category-bar.visible { display: flex; }
+.cat-chip {
+  padding: 5px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.03);
+  color: var(--text-dim);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: 'Noto Sans SC', sans-serif;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.cat-chip:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+.cat-chip.active {
+  border-color: var(--gold);
+  background: rgba(212, 168, 83, 0.12);
+  color: var(--gold-light);
+}
+.cat-chip .cat-count {
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+
+
+/* ===== UNIFIED MAP ===== */
+.unified-map {
+  display: none;
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 0 20px 40px;
+}
+.unified-map.active { display: block; }
+
+.map-wrapper {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+/* Map header: age axis */
+.map-header {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: rgba(10, 14, 26, 0.7);
+}
+.map-header-label {
+  width: 150px;
+  min-width: 150px;
+  padding: 12px 14px;
+  font-size: 11px;
+  color: var(--text-dim);
+  font-weight: 600;
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  border-right: 1px solid var(--border);
+}
+.map-age-axis {
+  flex: 1;
+  position: relative;
+  height: 42px;
+}
+.map-age-tick {
+  position: absolute;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translateX(-50%);
+}
+.map-age-tick .tick-line {
+  width: 1px;
+  height: 10px;
+  background: rgba(212,168,83,0.4);
+}
+.map-age-tick .tick-label {
+  font-size: 11px;
+  color: var(--gold-light);
+  white-space: nowrap;
+  font-weight: 600;
+  margin-top: 2px;
+}
+.map-age-tick .tick-sublabel {
+  font-size: 9px;
+  color: var(--text-dim);
+  margin-top: 1px;
+}
+
+/* Map body */
+.map-body {
+  display: flex;
+  overflow-x: auto;
+}
+.map-body::-webkit-scrollbar { height: 6px; }
+.map-body::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 3px; }
+
+/* Person labels column */
+.map-person-col {
+  width: 150px;
+  min-width: 150px;
+  border-right: 1px solid var(--border);
+  background: rgba(10, 14, 26, 0.5);
+  position: sticky;
+  left: 0;
+  z-index: 5;
+}
+.map-person-item {
+  height: 90px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.map-person-item:hover { background: rgba(212,168,83,0.06); }
+.map-person-item .mpi-avatar { font-size: 22px; flex-shrink: 0; }
+.map-person-item .mpi-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-bright);
+  white-space: nowrap;
+}
+.map-person-item .mpi-era {
+  font-size: 9px;
+  color: var(--text-dim);
+  margin-top: 1px;
+}
+.map-person-item .mpi-color-bar {
+  width: 3px;
+  height: 24px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* Timeline area */
+.map-timeline {
+  flex: 1;
+  position: relative;
+  min-width: 900px;
+}
+
+/* Grid lines */
+.map-grid-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(212,168,83,0.06);
+  pointer-events: none;
+}
+
+/* Life stage bands */
+.life-stage-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+  opacity: 0.04;
+}
+
+/* Person row */
+.map-row {
+  height: 90px;
+  position: relative;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  transition: background 0.2s;
+}
+.map-row:hover { background: rgba(212,168,83,0.02); }
+
+/* Life span bar */
+.life-bar {
+  position: absolute;
+  top: 8px;
+  height: 4px;
+  border-radius: 2px;
+  opacity: 0.3;
+}
+
+/* Decision dots with labels */
+.map-decision-group {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  z-index: 3;
+  transition: all 0.2s;
+}
+.map-decision-group:hover {
+  z-index: 10;
+  transform: translate(-50%, -50%) scale(1.15);
+}
+
+.map-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2.5px solid var(--bg);
+  transition: all 0.2s;
+}
+.map-decision-group:hover .map-dot {
+  box-shadow: 0 0 14px rgba(255,255,255,0.3);
+}
+.map-dot.dot-good { background: var(--green); }
+.map-dot.dot-bad { background: var(--red); }
+.map-dot.dot-mixed { background: var(--orange); }
+
+/* Category label shown directly on map */
+.map-cat-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  margin-top: 3px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+.map-decision-group:hover .map-cat-label {
+  background: rgba(212,168,83,0.15);
+  border-color: rgba(212,168,83,0.3);
+  color: var(--gold-light);
+}
+
+/* Year sub-label */
+.map-year-label {
+  font-size: 8px;
+  color: var(--text-dim);
+  margin-top: 1px;
+  opacity: 0.7;
+}
+
+/* Map legend */
+.map-legend {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  padding: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-dim);
+  flex-wrap: wrap;
+}
+.map-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.legend-dot.lg-good { background: var(--green); }
+.legend-dot.lg-bad { background: var(--red); }
+.legend-dot.lg-mixed { background: var(--orange); }
+
+/* ===== DETAIL PANEL (slides in from right) ===== */
+.detail-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 100;
+}
+.detail-overlay.visible { display: block; }
+
+.detail-panel {
+  position: fixed;
+  top: 0;
+  right: -460px;
+  width: 440px;
+  max-width: 90vw;
+  height: 100vh;
+  background: var(--bg);
+  border-left: 1px solid var(--border);
+  z-index: 101;
+  overflow-y: auto;
+  transition: right 0.3s ease;
+  padding: 24px;
+}
+.detail-panel.visible { right: 0; }
+.detail-panel::-webkit-scrollbar { width: 4px; }
+.detail-panel::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 2px; }
+
+.detail-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-dim);
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.detail-close:hover { border-color: var(--gold); color: var(--gold); }
+
+.detail-person-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.detail-person-header .dph-avatar { font-size: 36px; }
+.detail-person-header .dph-name {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+.detail-person-header .dph-info {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+.detail-context {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-bright);
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.detail-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.detail-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.detail-option.not-chosen {
+  background: rgba(255,255,255,0.02);
+  color: var(--text-dim);
+  border: 1px solid rgba(255,255,255,0.04);
+}
+.detail-option.is-chosen {
+  background: rgba(212,168,83,0.08);
+  color: var(--text);
+  border: 1px solid rgba(212,168,83,0.25);
+}
+.detail-option .do-marker {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  margin-top: 1px;
+}
+.detail-option.not-chosen .do-marker {
+  background: rgba(255,255,255,0.06);
+  color: var(--text-dim);
+}
+.detail-option.is-chosen .do-marker {
+  background: var(--gold);
+  color: var(--bg);
+}
+
+.detail-outcome-box {
+  padding: 14px 16px;
+  background: rgba(255,255,255,0.02);
+  border-radius: 8px;
+  border-left: 3px solid var(--gold-dim);
+  margin-bottom: 16px;
+}
+.detail-outcome-box .dob-label {
+  font-size: 11px;
+  color: var(--gold);
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.detail-outcome-box .dob-text {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.7;
+}
+
+.detail-insight-box {
+  padding: 12px 16px;
+  background: rgba(167,139,250,0.06);
+  border-radius: 8px;
+  border-left: 3px solid rgba(167,139,250,0.3);
+}
+.detail-insight-box .dib-label {
+  font-size: 11px;
+  color: var(--purple);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.detail-insight-box .dib-text {
+  font-size: 13px;
+  color: var(--purple);
+  font-style: italic;
+  line-height: 1.6;
+}
+
+/* Same-category cross-person comparison */
+.detail-compare-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.detail-compare-section h4 {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 14px;
+  color: var(--gold);
+  margin-bottom: 12px;
+}
+.compare-person-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.02);
+  margin-bottom: 8px;
+  border: 1px solid rgba(255,255,255,0.04);
+}
+.compare-person-row .cpr-avatar { font-size: 20px; flex-shrink: 0; margin-top: 2px; }
+.compare-person-row .cpr-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-bright);
+  margin-bottom: 2px;
+}
+.compare-person-row .cpr-context {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+.compare-person-row .cpr-choice {
+  font-size: 11px;
+  color: var(--green);
+  margin-top: 4px;
+  padding: 2px 8px;
+  background: rgba(52,211,153,0.08);
+  border-radius: 4px;
+  display: inline-block;
+}
+
+/* ===== SCORE CURVE VIEW ===== */
+.curve-layout {
+  display: none;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 20px 40px;
+}
+.curve-layout.active { display: block; }
+
+.curve-controls {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.control-group {
+  margin-bottom: 16px;
+}
+.control-group:last-child { margin-bottom: 0; }
+
+.control-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gold-light);
+  margin-bottom: 10px;
+}
+
+.person-checkboxes,
+.dimension-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.person-checkbox,
+.dimension-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.02);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 12px;
+}
+.person-checkbox:hover,
+.dimension-checkbox:hover {
+  background: rgba(255,255,255,0.05);
+  border-color: var(--gold-dim);
+}
+.person-checkbox input,
+.dimension-checkbox input {
+  cursor: pointer;
+}
+.person-checkbox.checked,
+.dimension-checkbox.checked {
+  background: rgba(212,168,83,0.12);
+  border-color: var(--gold);
+  color: var(--gold-light);
+}
+
+.curve-chart-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  overflow-x: auto;
+}
+
+#scoreCurveCanvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.curve-legend {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  padding: 16px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.curve-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-line {
+  width: 30px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+/* Color mode selector */
+.color-mode-selector {
+  display: flex;
+  gap: 8px;
+}
+
+.color-mode-btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.02);
+  color: var(--text-dim);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Noto Sans SC', sans-serif;
+}
+
+.color-mode-btn:hover {
+  background: rgba(255,255,255,0.05);
+  border-color: var(--gold-dim);
+}
+
+.color-mode-btn.active {
+  background: rgba(212,168,83,0.12);
+  border-color: var(--gold);
+  color: var(--gold-light);
+}
+
+/* ===== SINGLE PERSON DECISION PATH VIEW ===== */
+.main-layout {
+  display: none;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 20px 40px;
+}
+.main-layout.active { display: block; }
+
+.single-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.single-avatar {
+  font-size: 48px;
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(212,168,83,0.08);
+  border-radius: 50%;
+  border: 2px solid var(--gold-dim);
+}
+.single-info h2 {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+.single-info .subtitle { font-size: 13px; color: var(--text-dim); margin-top: 2px; }
+.single-info .lifespan { font-size: 12px; color: var(--gold); margin-top: 4px; }
+
+/* Decision path map */
+.decision-path-map {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow-x: auto;
+  overflow-y: visible;
+  position: relative;
+}
+
+/* Age axis header */
+.path-age-axis {
+  position: relative;
+  height: 50px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(10, 14, 26, 0.7);
+  min-width: 1400px;
+}
+.path-age-tick {
+  position: absolute;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translateX(-50%);
+}
+.path-age-tick .tick-line {
+  width: 1px;
+  height: 12px;
+  background: rgba(212,168,83,0.5);
+}
+.path-age-tick .tick-label {
+  font-size: 12px;
+  color: var(--gold-light);
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+/* Path body */
+.path-body {
+  position: relative;
+  min-height: 900px;
+  padding: 40px 40px 80px;
+  min-width: 1400px;
+}
+
+/* SVG path line */
+.path-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Decision column - positioned by age */
+.decision-column {
+  position: absolute;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 2;
+  width: 220px;
+}
+
+/* Decision context label at top */
+.decision-context-label {
+  font-size: 12px;
+  color: var(--text-bright);
+  text-align: center;
+  line-height: 1.4;
+  z-index: 3;
+  padding: 6px 12px;
+  background: rgba(212,168,83,0.08);
+  border-radius: 10px;
+  border: 1px solid rgba(212,168,83,0.2);
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+/* Options container - vertical stack */
+.options-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
+  z-index: 3;
+  width: 100%;
+}
+
+/* Option node */
+.option-node {
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  cursor: default;
+  transition: all 0.2s;
+  position: relative;
+}
+.option-node.not-chosen {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: var(--text-dim);
+  opacity: 0.6;
+}
+.option-node.is-chosen {
+  background: rgba(212,168,83,0.12);
+  border: 2px solid var(--gold);
+  color: var(--gold-light);
+  font-weight: 600;
+  box-shadow: 0 0 20px rgba(212,168,83,0.4);
+  opacity: 1;
+}
+.option-node .opt-label {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+.option-node.is-chosen .opt-label {
+  color: var(--gold);
+}
+.option-node .opt-text {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Metrics panel for chosen option */
+.metrics-panel {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(212,168,83,0.2);
+}
+.metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 11px;
+}
+.metric-label {
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.metric-value {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+}
+.metric-bar {
+  width: 60px;
+  height: 6px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-left: 6px;
+}
+.metric-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+.metric-high { color: var(--green); }
+.metric-medium { color: var(--orange); }
+.metric-low { color: var(--red); }
+
+/* Decision Matrix Table */
+.decision-matrix {
+  margin: 16px 0;
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid rgba(212,168,83,0.15);
+  background: rgba(255,255,255,0.01);
+}
+.decision-matrix table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.decision-matrix thead {
+  background: rgba(212,168,83,0.08);
+}
+.decision-matrix th {
+  padding: 10px 8px;
+  text-align: center;
+  font-weight: 600;
+  color: var(--gold-light);
+  border-bottom: 1px solid rgba(212,168,83,0.2);
+  white-space: nowrap;
+}
+.decision-matrix th:first-child {
+  text-align: left;
+  padding-left: 12px;
+  min-width: 180px;
+}
+.decision-matrix td {
+  padding: 8px;
+  text-align: center;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.decision-matrix td:first-child {
+  text-align: left;
+  padding-left: 12px;
+  font-weight: 500;
+  color: var(--text);
+}
+.decision-matrix tr.matrix-chosen {
+  background: rgba(212,168,83,0.06);
+}
+.decision-matrix tr.matrix-chosen td:first-child {
+  color: var(--gold-light);
+  font-weight: 600;
+}
+.decision-matrix .matrix-score {
+  display: inline-block;
+  min-width: 24px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.matrix-score-high {
+  background: rgba(52,211,153,0.15);
+  color: var(--green);
+}
+.matrix-score-medium {
+  background: rgba(251,146,60,0.15);
+  color: var(--orange);
+}
+.matrix-score-low {
+  background: rgba(248,113,113,0.15);
+  color: var(--red);
+}
+.matrix-summary {
+  display: flex;
+  gap: 12px;
+  padding: 8px 12px;
+  background: rgba(212,168,83,0.04);
+  border-top: 1px solid rgba(212,168,83,0.1);
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.matrix-summary-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Gain/Loss analysis panel */
+.gain-loss-panel {
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.02);
+  border-radius: 6px;
+  border-left: 2px solid rgba(212,168,83,0.3);
+}
+.gain-loss-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 4px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.gain-loss-row:last-child {
+  margin-bottom: 0;
+}
+.gain-loss-icon {
+  font-size: 12px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.gain-loss-label {
+  color: var(--text-dim);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.gain-loss-text {
+  color: var(--text);
+  flex: 1;
+}
+.option-node.not-chosen .gain-loss-panel {
+  opacity: 0.7;
+}
+.option-node.not-chosen .gain-loss-text {
+  color: var(--text-dim);
+}
+
+/* Outcome tag on chosen node */
+.outcome-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  margin-top: 6px;
+}
+.outcome-badge.good { background: rgba(52,211,153,0.2); color: var(--green); }
+.outcome-badge.bad { background: rgba(248,113,113,0.2); color: var(--red); }
+.outcome-badge.mixed { background: rgba(251,146,60,0.2); color: var(--orange); }
+
+/* Path legend */
+.path-legend {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  padding: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.path-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.legend-line-sample {
+  width: 30px;
+  height: 3px;
+  border-radius: 2px;
+}
+.legend-line-sample.chosen { background: var(--gold); box-shadow: 0 0 8px rgba(212,168,83,0.6); }
+.legend-line-sample.unchosen { background: rgba(255,255,255,0.15); }
+
+/* Vertical Timeline Layout */
+.vertical-timeline {
+  position: relative;
+  padding: 20px 0;
+}
+
+.timeline-item {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 40px;
+  position: relative;
+}
+
+.timeline-left {
+  flex-shrink: 0;
+  width: 80px;
+  text-align: right;
+  padding-top: 8px;
+}
+
+.timeline-age {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--gold);
+  margin-bottom: 4px;
+}
+
+.timeline-year {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.timeline-connector {
+  flex-shrink: 0;
+  width: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.timeline-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--gold);
+  border: 3px solid var(--bg-card);
+  box-shadow: 0 0 12px rgba(212,168,83,0.6);
+  z-index: 2;
+  margin-top: 12px;
+}
+
+.timeline-line {
+  width: 2px;
+  flex: 1;
+  background: linear-gradient(to bottom, var(--gold), rgba(212,168,83,0.2));
+  margin-top: 8px;
+}
+
+.timeline-content {
+  flex: 1;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.3s;
+}
+
+.timeline-content:hover {
+  background: rgba(255,255,255,0.04);
+  border-color: rgba(212,168,83,0.2);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+.timeline-category {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-bright);
+  padding: 4px 12px;
+  background: rgba(212,168,83,0.08);
+  border-radius: 10px;
+  border: 1px solid rgba(212,168,83,0.2);
+  margin-bottom: 12px;
+}
+
+.timeline-context {
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+.timeline-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.timeline-outcome {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.7;
+  padding: 12px 16px;
+  background: rgba(255,255,255,0.02);
+  border-radius: 8px;
+  border-left: 3px solid var(--gold-dim);
+  margin-bottom: 12px;
+}
+
+.timeline-insight {
+  font-size: 12px;
+  color: var(--purple);
+  line-height: 1.6;
+  padding: 10px 14px;
+  background: rgba(167,139,250,0.06);
+  border-radius: 8px;
+  border-left: 3px solid rgba(167,139,250,0.3);
+}
+
+.metrics-header {
+  font-size: 11px;
+  color: var(--gold);
+  font-weight: 600;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 900px) {
+  .main-layout.active { flex-direction: column; }
+  .header h1 { font-size: 26px; }
+  .map-person-col { width: 120px; min-width: 120px; }
+  .map-header-label { width: 120px; min-width: 120px; }
+  .map-person-item { height: 80px; }
+  .map-row { height: 80px; }
+  .map-cat-label { font-size: 9px; max-width: 60px; }
+  .map-dot { width: 14px; height: 14px; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>真实决策地图</h1>
+  <p>横轴年龄 · 纵轴人物 · 点击决策场景查看跨人物对比</p>
+</div>
+
+<div class="mode-bar">
+  <button class="mode-btn active" id="mapModeBtn" onclick="setMode('map')">🗺️ 决策地图</button>
+  <button class="mode-btn" id="singleModeBtn" onclick="setMode('single')">📋 单人详情</button>
+  <button class="mode-btn" id="curveModeBtn" onclick="setMode('curve')">📈 得分曲线</button>
+</div>
+
+<!-- Category filter -->
+<div class="category-bar visible" id="categoryBar"></div>
+
+<!-- Unified map -->
+<div class="unified-map active" id="unifiedMap">
+  <div class="map-wrapper">
+    <div class="map-header">
+      <div class="map-header-label">人物 · 年龄 →</div>
+      <div class="map-age-axis" id="mapAgeAxis"></div>
+    </div>
+    <div class="map-body">
+      <div class="map-person-col" id="mapPersonCol"></div>
+      <div class="map-timeline" id="mapTimeline"></div>
+    </div>
+    <div class="map-legend">
+      <div class="map-legend-item"><div class="legend-dot lg-good"></div>正面结果</div>
+      <div class="map-legend-item"><div class="legend-dot lg-mixed"></div>复杂结果</div>
+      <div class="map-legend-item"><div class="legend-dot lg-bad"></div>负面结果</div>
+      <div class="map-legend-item" style="margin-left:16px;color:var(--text-dim)">点击决策标签查看同类决策对比</div>
+    </div>
+  </div>
+</div>
+
+<!-- Single person view -->
+<div class="main-layout" id="mainLayout">
+  <div class="single-header" id="singleHeader"></div>
+  <div class="decision-path-map" id="decisionPathMap">
+    <div class="path-age-axis" id="pathAgeAxis"></div>
+    <div class="path-body" id="pathBody">
+      <svg class="path-svg" id="pathSvg"></svg>
+    </div>
+    <div class="path-legend">
+      <div class="path-legend-item"><div class="legend-line-sample chosen"></div>实际选择的决策路径</div>
+      <div class="path-legend-item"><div class="legend-line-sample unchosen"></div>未选择的选项</div>
+      <div class="path-legend-item" style="margin-left:16px;color:var(--text-dim)">金色节点 = 实际选择 · 灰色节点 = 放弃的选项</div>
+    </div>
+  </div>
+</div>
+
+<!-- Score curve view -->
+<div class="curve-layout" id="curveLayout">
+  <div class="curve-controls">
+    <div class="control-group">
+      <label>时间范围：</label>
+      <div class="color-mode-selector" id="timeRangeSelector">
+        <button class="color-mode-btn time-range-btn active" data-range="short" onclick="setTimeRange('short')">1-2年内</button>
+        <button class="color-mode-btn time-range-btn" data-range="long" onclick="setTimeRange('long')">5年以上</button>
+      </div>
+    </div>
+    <div class="control-group">
+      <label>颜色模式：</label>
+      <div class="color-mode-selector" id="colorModeSelector">
+        <button class="color-mode-btn active" data-mode="person" onclick="setColorMode('person')">按人物区分</button>
+        <button class="color-mode-btn" data-mode="dimension" onclick="setColorMode('dimension')">按维度区分</button>
+      </div>
+    </div>
+    <div class="control-group">
+      <label>选择人物：</label>
+      <div class="person-checkboxes" id="personCheckboxes"></div>
+    </div>
+    <div class="control-group">
+      <label>选择维度：</label>
+      <div class="dimension-checkboxes" id="dimensionCheckboxes"></div>
+    </div>
+  </div>
+  <div class="curve-chart-container" style="position:relative;">
+    <canvas id="scoreCurveCanvas" width="1200" height="600"></canvas>
+    <div id="curveTooltip" style="position:absolute;display:none;background:rgba(12,16,23,0.95);border:1px solid rgba(212,168,83,0.3);border-radius:8px;padding:10px 14px;pointer-events:none;z-index:100;max-width:280px;backdrop-filter:blur(8px);box-shadow:0 4px 20px rgba(0,0,0,0.5);"></div>
+  </div>
+  <div class="curve-legend" id="curveLegend"></div>
+</div>
+
+<!-- Detail panel (slide-in) -->
+<div class="detail-overlay" id="detailOverlay" onclick="closeDetail()"></div>
+<div class="detail-panel" id="detailPanel">
+  <button class="detail-close" onclick="closeDetail()">✕</button>
+  <div id="detailContent"></div>
+</div>
+
+<script>
+// ===== DECISION SCENARIOS (生活场景) =====
+const CATEGORIES = {
+  '辞职创业': { icon: '💼', color: '#34d399', desc: '放弃稳定工作，从零开始创业' },
+  '考研深造': { icon: '📚', color: '#60a5fa', desc: '继续学习，提升学历或能力' },
+  '职业转型': { icon: '🔄', color: '#fb923c', desc: '改变方向，进入新领域' },
+  '长期深耕': { icon: '💪', color: '#fbbf24', desc: '在一个领域持续投入，厚积薄发' },
+  '逆境翻盘': { icon: '🌊', color: '#818cf8', desc: '在重大挫折中寻找出路' },
+  '孤注一掷': { icon: '🎲', color: '#f87171', desc: '高风险高回报的大赌注' },
+  '坚守信念': { icon: '⚖️', color: '#a78bfa', desc: '坚持原则，不为利益妥协' },
+  '稳扎稳打': { icon: '🛡️', color: '#94a3b8', desc: '踏实稳健，不追求速成' },
+  '传承交接': { icon: '🔥', color: '#22d3ee', desc: '培养后人，传递事业' },
+  '功成身退': { icon: '🏆', color: '#eab308', desc: '巅峰时主动退出，全身而退' },
+};
+
+
+
+
+
+
+
+
+
+// ===== DATA =====
+// era: 'ancient' | 'modern' — determines row order (ancient first)
+// Metrics: wealth(财富), growth(成长性), happiness(幸福), risk(风险), influence(影响力)
+// Scale: 1-5 (1=很低, 5=很高)
+const people = {
+  susshi: {
+    name: '苏轼', avatar: '📜', lifespan: '1037-1101', era: 'ancient', eraLabel: '北宋',
+    subtitle: '从科举状元到千古文豪的跌宕人生',
+    decisions: [
+      { age: 21, year: 1057, category: '考研深造', context: '与弟弟苏辙同榜进士及第，主考官欧阳修大为赞赏',
+        options: [
+          { text: '留在京城，攀附权贵快速升迁', chosen: false, metrics: { wealth: { short: 2, long: -1 }, growth: { short: 0, long: -1 }, happiness: { short: 1, long: -1 }, risk: { short: 1, long: -2 }, influence: { short: 2, long: -1 } }, bestGain: '快速升迁，早期积累政治资源', worstLoss: '根基不稳，可能卷入政治斗争' },
+          { text: '按制度回乡守丧（母丧），积蓄学识', chosen: true, metrics: { wealth: { short: -1, long: 0 }, growth: { short: 1, long: 2 }, happiness: { short: 0, long: 1 }, risk: { short: -1, long: 0 }, influence: { short: -1, long: 1 } }, bestGain: '学识大进，人格完善，奠定文学基础', worstLoss: '错过京城建立人脉的黄金时期' },
+          { text: '接受欧阳修推荐，进入核心政治圈', chosen: false, metrics: { wealth: { short: 1, long: 0 }, growth: { short: 1, long: 0 }, happiness: { short: 0, long: -1 }, risk: { short: 2, long: -1 }, influence: { short: 2, long: 1 } }, bestGain: '早期进入权力中心，影响力最大化', worstLoss: '资历浅薄，可能成为政治炮灰' }
+        ],
+        outcome: '选择回乡守丧三年。深入读书思考，文学造诣大幅提升，但错过了在京城建立人脉的最佳时机。',
+        outcomeType: 'mixed',
+        insight: '遵守传统道德可能短期"吃亏"，但长远塑造了人格和学识。' },
+      { age: 36, year: 1072, category: '坚守信念', context: '王安石变法推行，朝堂分裂为新党旧党',
+        options: [
+          { text: '支持王安石变法，顺应潮流', chosen: false, metrics: { wealth: { short: 2, long: 0 }, growth: { short: 0, long: -1 }, happiness: { short: -1, long: -2 }, risk: { short: 0, long: -1 }, influence: { short: 2, long: -1 } }, bestGain: '快速升迁，掌握实权', worstLoss: '违背良心，留下历史骂名' },
+          { text: '完全反对变法，站在旧党一边', chosen: false, metrics: { wealth: { short: 0, long: -1 }, growth: { short: 0, long: -1 }, happiness: { short: 1, long: 0 }, risk: { short: 1, long: 0 }, influence: { short: 1, long: -1 } }, bestGain: '获得旧党支持，名声清白', worstLoss: '思想僵化，错失改革机遇' },
+          { text: '指出变法弊端，但不完全反对改革', chosen: true, metrics: { wealth: { short: -1, long: -2 }, growth: { short: 1, long: 1 }, happiness: { short: -1, long: 0 }, risk: { short: 2, long: 1 }, influence: { short: 1, long: 2 } }, bestGain: '保持独立思考，历史证明正确', worstLoss: '两面受敌，被新旧党同时排挤' }
+        ],
+        outcome: '认为新法过于激进，上书指出问题，得罪王安石被外放杭州。两面受敌。',
+        outcomeType: 'bad',
+        insight: '在极端对立中保持理性，往往两面受敌。但历史证明他是对的。' },
+      { age: 43, year: 1079, category: '逆境翻盘', context: '乌台诗案——因诗文被指控诽谤朝廷，面临死刑',
+        options: [
+          { text: '认罪求饶，争取从轻处理', chosen: true, metrics: { wealth: { short: -2, long: 0 }, growth: { short: -1, long: 0 }, happiness: { short: -2, long: -1 }, risk: { short: -1, long: 0 }, influence: { short: -2, long: -1 } }, bestGain: '保住性命，留得青山在', worstLoss: '尊严尽失，士气崩溃' },
+          { text: '坚持己见，宁死不屈', chosen: false, metrics: { wealth: { short: -2, long: 0 }, growth: { short: 0, long: 2 }, happiness: { short: -1, long: 1 }, risk: { short: 2, long: 2 }, influence: { short: -1, long: 2 } }, bestGain: '名垂青史，成为气节典范', worstLoss: '性命不保，才华埋没' },
+          { text: '保持沉默，不回应指控', chosen: false, metrics: { wealth: { short: -2, long: -1 }, growth: { short: -2, long: -2 }, happiness: { short: -2, long: -2 }, risk: { short: 1, long: 0 }, influence: { short: -2, long: -2 } }, bestGain: '避免说错话加重罪责', worstLoss: '失去申辩机会，被动受罚' }
+        ],
+        outcome: '在狱中写下绝命诗，最终多方营救下免死，被贬黄州。死里逃生彻底改变了人生态度。',
+        outcomeType: 'mixed',
+        insight: '文字可以成就一个人，也可以毁灭一个人。但真正的才华不会被埋没。' },
+      { age: 44, year: 1080, category: '逆境翻盘', context: '被贬黄州，从高官沦为犯官，生活困顿',
+        options: [
+          { text: '消沉抱怨，等待平反', chosen: false, metrics: { wealth: { short: -1, long: -2 }, growth: { short: -2, long: -2 }, happiness: { short: -2, long: -2 }, risk: { short: 0, long: -1 }, influence: { short: -2, long: -2 } }, bestGain: '保持姿态，等待时机', worstLoss: '蹉跎岁月，意志消沉' },
+          { text: '开荒种地（东坡），自给自足，寄情山水文学', chosen: true, metrics: { wealth: { short: -1, long: 0 }, growth: { short: 2, long: 2 }, happiness: { short: 1, long: 2 }, risk: { short: -1, long: 0 }, influence: { short: 1, long: 2 } }, bestGain: '创作巅峰，成就千古文名', worstLoss: '物质匮乏，生活艰苦' },
+          { text: '四处奔走，寻求政治翻案', chosen: false, metrics: { wealth: { short: -1, long: -1 }, growth: { short: 0, long: -1 }, happiness: { short: -1, long: -1 }, risk: { short: 2, long: 1 }, influence: { short: 0, long: 0 } }, bestGain: '可能提前复起', worstLoss: '耗费精力，可能适得其反' }
+        ],
+        outcome: '在黄州城东开荒种地，自号"东坡居士"。写出《赤壁赋》《念奴娇》《寒食帖》等千古名篇，迎来创作巅峰。',
+        outcomeType: 'good',
+        insight: '人生最低谷可能是创造力最旺盛的时刻。苦难是伟大作品的催化剂。' },
+      { age: 57, year: 1094, category: '长期深耕', context: '再次被贬到更远的惠州（岭南）',
+        options: [
+          { text: '悲观绝望，一蹶不振', chosen: false, metrics: { wealth: { short: -1, long: -2 }, growth: { short: -2, long: -2 }, happiness: { short: -2, long: -2 }, risk: { short: 1, long: 2 }, influence: { short: -2, long: -2 } }, bestGain: '避免无谓挣扎', worstLoss: '精神崩溃，提前离世' },
+          { text: '随遇而安，在逆境中发现生活之美', chosen: true, metrics: { wealth: { short: -1, long: -1 }, growth: { short: 1, long: 1 }, happiness: { short: 1, long: 2 }, risk: { short: -1, long: 0 }, influence: { short: 0, long: 1 } }, bestGain: '内心自由，活出境界', worstLoss: '物质条件持续恶化' }
+        ],
+        outcome: '写下"日荔枝三百颗，不辞长作岭南人"。以乐观豁达面对流放，继续创作和造福百姓。',
+        outcomeType: 'good',
+        insight: '环境不能决定心态。真正的自由是内心的自由。' },
+      { age: 62, year: 1099, category: '传承交接', context: '被贬到更远的儋州（海南岛），当时是蛮荒之地',
+        options: [
+          { text: '放弃希望，等待死亡', chosen: false, metrics: { wealth: { short: -1, long: -2 }, growth: { short: -2, long: -2 }, happiness: { short: -2, long: -2 }, risk: { short: 2, long: 2 }, influence: { short: -2, long: -2 } }, bestGain: '减少痛苦', worstLoss: '彻底虚度余生' },
+          { text: '在海南办学教化，传播文化', chosen: true, metrics: { wealth: { short: -1, long: -1 }, growth: { short: 1, long: 2 }, happiness: { short: 1, long: 2 }, risk: { short: 1, long: 1 }, influence: { short: 2, long: 2 } }, bestGain: '教化一方，文化传承', worstLoss: '身体透支，加速衰老' }
+        ],
+        outcome: '在海南办学堂，培养出海南历史上第一位举人。将中原文化带到天涯海角。',
+        outcomeType: 'good',
+        insight: '无论身处何地，都可以为他人创造价值。这是超越个人得失的最高境界。' }
+    ]
+  },
+
+  zengguofan: {
+    name: '曾国藩', avatar: '🎖️', lifespan: '1811-1872', era: 'ancient', eraLabel: '晚清',
+    subtitle: '从平庸书生到晚清第一重臣',
+    decisions: [
+      { age: 28, year: 1838, category: '考研深造', context: '多次科举失败后终于考中进士，入翰林院',
+        options: [
+          { text: '满足于翰林清闲职位，安稳度日', chosen: false, metrics: { wealth: { short: 1, long: -1 }, growth: { short: -1, long: -2 }, happiness: { short: 1, long: -1 }, risk: { short: -1, long: 0 }, influence: { short: -1, long: -2 } }, bestGain: '安稳舒适，无压力', worstLoss: '碌碌无为，泯然众人' },
+          { text: '发愤读书，立志做圣人，每日自省', chosen: true, metrics: { wealth: { short: -1, long: 1 }, growth: { short: 2, long: 2 }, happiness: { short: -1, long: 1 }, risk: { short: -1, long: 0 }, influence: { short: 0, long: 2 } }, bestGain: '脱胎换骨，终成一代名臣', worstLoss: '过程痛苦，需极强自律' },
+          { text: '结交权贵，走仕途捷径', chosen: false, metrics: { wealth: { short: 2, long: -1 }, growth: { short: 0, long: -1 }, happiness: { short: 0, long: -1 }, risk: { short: 2, long: -1 }, influence: { short: 2, long: -1 } }, bestGain: '升迁快速，权势显赫', worstLoss: '根基不稳，一旦失势万劫不复' }
+        ],
+        outcome: '立志"学做圣人"，开始写日记自省，每日读书不辍。定下十二条功课：主敬、静坐、读书、写日记等。',
+        outcomeType: 'good',
+        insight: '起点不高没关系，关键是持续自我提升。"笨功夫"最终成就了伟大。' },
+      { age: 40, year: 1852, category: '辞职创业', context: '母亲去世回乡守丧，太平天国运动爆发',
+        options: [
+          { text: '守丧期满再出山，按规矩办事', chosen: false, metrics: { wealth: { short: -1, long: -1 }, growth: { short: 0, long: -1 }, happiness: { short: 1, long: 0 }, risk: { short: 0, long: 0 }, influence: { short: -1, long: -1 } }, bestGain: '遵守礼法，名声清白', worstLoss: '错失良机，被他人抢占先机' },
+          { text: '在家乡创办湘军，镇压太平天国', chosen: true, metrics: { wealth: { short: 0, long: 1 }, growth: { short: 2, long: 2 }, happiness: { short: -1, long: 0 }, risk: { short: 2, long: 1 }, influence: { short: 2, long: 2 } }, bestGain: '建功立业，封侯拜相', worstLoss: '兵败身死，家族覆灭' },
+          { text: '明哲保身，不参与军事', chosen: false, metrics: { wealth: { short: -1, long: -2 }, growth: { short: -2, long: -2 }, happiness: { short: 1, long: -1 }, risk: { short: -2, long: -1 }, influence: { short: -2, long: -2 } }, bestGain: '安全无忧，保全性命', worstLoss: '国家危难时无作为，历史无名' }
+        ],
+        outcome: '打破常规，守丧期间奉命创办湘军。以儒家思想治军，最终成为镇压太平天国的主力。',
+        outcomeType: 'good',
+        insight: '危机时刻敢于承担责任，是成为领袖的关键一步。' },
+      { age: 48, year: 1860, category: '稳扎稳打', context: '湘军与太平军激战，多次失败，朝廷压力巨大',
+        options: [
+          { text: '速战速决，冒险进攻', chosen: false, metrics: { wealth: { short: 1, long: -1 }, growth: { short: 0, long: -1 }, happiness: { short: 0, long: -1 }, risk: { short: 2, long: 2 }, influence: { short: 1, long: -1 } }, bestGain: '快速平定，功成名就', worstLoss: '一战溃败，全盘皆输' },
+          { text: '结硬寨，打呆仗，稳扎稳打', chosen: true, metrics: { wealth: { short: 0, long: 1 }, growth: { short: 1, long: 1 }, happiness: { short: -1, long: 0 }, risk: { short: 0, long: 0 }, influence: { short: 1, long: 2 } }, bestGain: '稳操胜券，不可逆转', worstLoss: '耗时漫长，消耗巨大' }
+        ],
+        outcome: '采取"结硬寨，打呆仗"策略，不追求奇谋妙计，步步为营。虽然慢，但最终耗死了太平天国。',
+        outcomeType: 'good',
+        insight: '"天下之至拙，能胜天下之至巧。"——稳扎稳打胜过投机取巧。' },
+      { age: 54, year: 1864, category: '功成身退', context: '攻克天京，平定太平天国，功高震主',
+        options: [
+          { text: '乘势扩大势力，甚至称帝', chosen: false, metrics: { wealth: { short: 2, long: -2 }, growth: { short: 1, long: -2 }, happiness: { short: 0, long: -2 }, risk: { short: 2, long: 2 }, influence: { short: 2, long: -2 } }, bestGain: '改朝换代，登基称帝', worstLoss: '众叛亲离，身败名裂' },
+          { text: '主动裁撤湘军，自剪羽翼', chosen: true, metrics: { wealth: { short: -1, long: 0 }, growth: { short: 0, long: 0 }, happiness: { short: 1, long: 2 }, risk: { short: -2, long: -1 }, influence: { short: -1, long: 1 } }, bestGain: '保全自身，善终结局', worstLoss: '失去兵权，任人宰割' },
+          { text: '保持军队，作为政治筹码', chosen: false, metrics: { wealth: { short: 1, long: -1 }, growth: { short: 0, long: -1 }, happiness: { short: 0, long: -1 }, risk: { short: 2, long: 2 }, influence: { short: 1, long: -2 } }, bestGain: '保有谈判筹码', worstLoss: '朝廷猜忌，最终被清算' }
+        ],
+        outcome: '功成名就时主动裁撤湘军，避免"功高震主"危险。保全了自身和家族安全。',
+        outcomeType: 'good',
+        insight: '知道何时进、何时退，比知道如何赢更重要。' },
+      { age: 59, year: 1870, category: '稳扎稳打', context: '天津教案，民众与外国教会冲突，被任命处理',
+        options: [
+          { text: '迎合民意，强硬对待外国人', chosen: false, metrics: { wealth: { short: 0, long: -1 }, growth: { short: -1, long: -1 }, happiness: { short: 1, long: 1 }, risk: { short: 2, long: 2 }, influence: { short: 1, long: -1 } }, bestGain: '民心所向，成为民族英雄', worstLoss: '引发战争，国家遭殃' },
+          { text: '理性处理，保护外国人但安抚民众', chosen: true, metrics: { wealth: { short: 0, long: -1 }, growth: { short: 0, long: 0 }, happiness: { short: -1, long: -2 }, risk: { short: 1, long: 0 }, influence: { short: 0, long: -1 } }, bestGain: '避免战争，维护和平', worstLoss: '被骂卖国贼，名声扫地' },
+          { text: '推辞不去，避免惹麻烦', chosen: false, metrics: { wealth: { short: -1, long: -1 }, growth: { short: -1, long: -1 }, happiness: { short: 1, long: 0 }, risk: { short: -1, long: 0 }, influence: { short: -1, long: -1 } }, bestGain: '保全名声', worstLoss: '逃避责任，辜负朝廷' }
+        ],
+        outcome: '理性处理天津教案，保护了外国人也镇压了民众，结果两头得罪，被骂"卖国贼"。晚年最大政治失误。',
+        outcomeType: 'bad',
+        insight: '在民族情绪高涨时做理性决策，需要极大勇气，但也可能付出巨大代价。' }
+    ]
+  },
+
+  zhangyimou: {
+    name: '张艺谋', avatar: '🎬', lifespan: '1950-至今', era: 'modern', eraLabel: '当代',
+    subtitle: '从棉纺厂工人到国际电影大师',
+    decisions: [
+      { age: 27, year: 1978, category: '考研深造', context: '在棉纺厂当了7年工人后，恢复高考',
+        options: [
+          { text: '继续在工厂工作，安稳生活', chosen: false, metrics: { wealth: { short: 0, long: -1 }, growth: { short: -1, long: -2 }, happiness: { short: 0, long: -1 }, risk: { short: -1, long: 0 }, influence: { short: -1, long: -2 } }, bestGain: '稳定安逸，无风险', worstLoss: '才华埋没，一生平庸' },
+          { text: '报考北京电影学院，改变命运', chosen: true, metrics: { wealth: { short: -1, long: 1 }, growth: { short: 2, long: 2 }, happiness: { short: 1, long: 2 }, risk: { short: 1, long: 0 }, influence: { short: 1, long: 2 } }, bestGain: '进入电影行业，成就大师', worstLoss: '超龄落榜，白费精力' },
+          { text: '做其他行业的尝试', chosen: false, metrics: { wealth: { short: 1, long: 0 }, growth: { short: 1, long: 0 }, happiness: { short: 0, long: 0 }, risk: { short: 0, long: 0 }, influence: { short: 0, long: -1 } }, bestGain: '可能找到新机会', worstLoss: '偏离电影梦想' }
+        ],
+        outcome: '以超龄身份破格考入北电摄影系。是78级"第五代导演"中最年长的学生，彻底改变人生轨迹。',
+        outcomeType: 'good',
+        insight: '年龄不是学习的障碍。27岁重新开始，依然可以成就伟大。' },
+      { age: 34, year: 1984, category: '职业转型', context: '毕业后被分配到广西电影制片厂',
+        options: [
+          { text: '拍主流商业片，快速成名', chosen: false, metrics: { wealth: { short: 2, long: 0 }, growth: { short: 0, long: -1 }, happiness: { short: 1, long: 0 }, risk: { short: 0, long: 0 }, influence: { short: 1, long: -1 } }, bestGain: '快速成名，收入丰厚', worstLoss: '艺术价值低，被同行轻视' },
+          { text: '做摄影师，参与《一个和八个》《黄土地》', chosen: true, metrics: { wealth: { short: -1, long: 0 }, growth: { short: 2, long: 2 }, happiness: { short: 0, long: 1 }, risk: { short: 0, long: 0 }, influence: { short: 1, long: 2 } }, bestGain: '奠定艺术风格，积累声誉', worstLoss: '收入微薄，成名较慢' }
+        ],
+        outcome: '选择先做摄影师，参与《一个和八个》和《黄土地》。开创中国电影新时代，奠定艺术风格。',
+        outcomeType: 'good',
+        insight: '先做好配角，积累经验和声誉，再走向主角。' },
+      { age: 37, year: 1987, category: '辞职创业', context: '首次担任导演，选择第一部电影',
+        options: [
+          { text: '拍商业片，保证票房', chosen: false, metrics: { wealth: { short: 2, long: 0 }, growth: { short: 0, long: -1 }, happiness: { short: 1, long: 0 }, risk: { short: 0, long: 0 }, influence: { short: 1, long: -1 } }, bestGain: '票房成功，市场认可', worstLoss: '艺术平庸，缺乏特色' },
+          { text: '拍《红高粱》，展现中国乡土文化', chosen: true, metrics: { wealth: { short: 0, long: 1 }, growth: { short: 2, long: 2 }, happiness: { short: 1, long: 2 }, risk: { short: 1, long: 0 }, influence: { short: 2, long: 2 } }, bestGain: '国际大奖，一举成名', worstLoss: '票房惨淡，无人问津' },
+          { text: '拍城市题材，迎合现代观众', chosen: false, metrics: { wealth: { short: 1, long: 0 }, growth: { short: 1, long: 0 }, happiness: { short: 0, long: 0 }, risk: { short: 0, long: 0 }, influence: { short: 1, long: 0 } }, bestGain: '观众共鸣，市场接受', worstLoss: '缺乏独特性' }
+        ],
+        outcome: '《红高粱》获柏林电影节金熊奖，中国电影首次获国际最高荣誉。一举成名，开启国际导演之路。',
+        outcomeType: 'good',
+        insight: '第一部作品要展现独特个人风格，而不是迎合市场。' },
+      { age: 48, year: 1998, category: '职业转型', context: '艺术片屡获国际大奖但国内票房不佳',
+        options: [
+          { text: '坚持艺术片路线', chosen: false, metrics: { wealth: { short: -1, long: -1 }, growth: { short: 0, long: 0 }, happiness: { short: 1, long: 1 }, risk: { short: 1, long: 1 }, influence: { short: 0, long: -1 } }, bestGain: '艺术纯粹，口碑极佳', worstLoss: '市场萎缩，难以为继' },
+          { text: '尝试商业大片《英雄》', chosen: true, metrics: { wealth: { short: 2, long: 2 }, growth: { short: 0, long: 0 }, happiness: { short: 0, long: -1 }, risk: { short: 2, long: 1 }, influence: { short: 2, long: 1 } }, bestGain: '开创商业大片时代，票房大卖', worstLoss: '艺术争议，口碑两极' }
+        ],
+        outcome: '《英雄》开创中国商业大片时代，国内票房2.5亿，全球1.77亿美元。但引发"艺术vs商业"争议。',
+        outcomeType: 'mixed',
+        insight: '从艺术转向商业需要勇气，也会面临两面质疑。关键是找到新的平衡。' },
+      { age: 58, year: 2008, category: '孤注一掷', context: '被选为北京奥运会开幕式总导演',
+        options: [
+          { text: '拒绝，专注电影创作', chosen: false, metrics: { wealth: { short: 0, long: 0 }, growth: { short: 0, long: -1 }, happiness: { short: 1, long: 0 }, risk: { short: -1, long: 0 }, influence: { short: 0, long: -1 } }, bestGain: '专注本业，风险低', worstLoss: '错失国家级机会' },
+          { text: '接受挑战，执导奥运会开幕式', chosen: true, metrics: { wealth: { short: 1, long: 1 }, growth: { short: 1, long: 1 }, happiness: { short: 1, long: 2 }, risk: { short: 2, long: 1 }, influence: { short: 2, long: 2 } }, bestGain: '成为国家级文化符号', worstLoss: '失败则名声扫地' }
+        ],
+        outcome: '北京奥运会开幕式震惊世界，被认为是最成功的奥运开幕式之一。从电影导演升级为"国家级"文化符号。',
+        outcomeType: 'good',
+        insight: '敢于接受超出舒适区的挑战，往往能实现质的飞跃。' }
+    ]
+  },
+
+  stevejobs: {
+    name: '乔布斯', avatar: '', lifespan: '1955-2011', era: 'modern', eraLabel: '当代',
+    subtitle: '从车库创业到改变世界的科技传奇',
+    decisions: [
+      { age: 21, year: 1976, category: '辞职创业', context: '在雅达利工作后，与沃兹尼亚克在车库创办苹果',
+        options: [
+          { text: '继续在雅达利工作，安稳拿工资', chosen: false, metrics: { wealth: { short: 0, long: -1 }, growth: { short: -1, long: -2 }, happiness: { short: 0, long: -1 }, risk: { short: -1, long: 0 }, influence: { short: -1, long: -2 } }, bestGain: '稳定收入，生活安逸', worstLoss: '错过个人电脑革命，一生打工' },
+          { text: '辍学创业，在车库里做个人电脑', chosen: true, metrics: { wealth: { short: 1, long: 2 }, growth: { short: 2, long: 2 }, happiness: { short: 1, long: 2 }, risk: { short: 2, long: 1 }, influence: { short: 2, long: 2 } }, bestGain: '改变世界，成为科技传奇', worstLoss: '创业失败，血本无归' },
+          { text: '读完大学再考虑创业', chosen: false, metrics: { wealth: { short: 0, long: 0 }, growth: { short: 1, long: 0 }, happiness: { short: 0, long: 0 }, risk: { short: -1, long: 0 }, influence: { short: 0, long: -1 } }, bestGain: '基础扎实，风险更低', worstLoss: '错过市场窗口期' }
+        ],
+        outcome: '从里德学院辍学，与沃兹尼亚克在车库创办苹果。Apple I和II大获成功，公司迅速上市。',
+        outcomeType: 'good',
+        insight: '时机比完美准备更重要。个人电脑革命窗口期稍纵即逝。' },
+      { age: 30, year: 1985, category: '长期深耕', context: '与CEO斯卡利权力斗争失败，被自己创办的公司赶走',
+        options: [
+          { text: '放弃科技行业，彻底转行', chosen: false, metrics: { wealth: { short: 0, long: -1 }, growth: { short: -1, long: -1 }, happiness: { short: 1, long: 0 }, risk: { short: 0, long: 0 }, influence: { short: -2, long: -2 } }, bestGain: '远离纷争，内心平静', worstLoss: '才华浪费，科技界失去领袖' },
+          { text: '创办NeXT，同时收购皮克斯动画', chosen: true, metrics: { wealth: { short: 0, long: 1 }, growth: { short: 2, long: 2 }, happiness: { short: 0, long: 1 }, risk: { short: 2, long: 1 }, influence: { short: 1, long: 2 } }, bestGain: '二次崛起，积累更深能力', worstLoss: '再次失败，彻底出局' },
+          { text: '起诉苹果，争夺控制权', chosen: false, metrics: { wealth: { short: -1, long: -2 }, growth: { short: -1, long: -1 }, happiness: { short: -2, long: -2 }, risk: { short: 2, long: 1 }, influence: { short: 0, long: -1 } }, bestGain: '夺回公司', worstLoss: '漫长诉讼，两败俱伤' }
+        ],
+        outcome: '创办NeXT（后被苹果收购，成为macOS基础），收购皮克斯（制作《玩具总动员》）。"流放期"让他成熟。',
+        outcomeType: 'good',
+        insight: '被解雇是"最好的事"——成功的沉重被初学者的轻盈取代。' },
+      { age: 42, year: 1997, category: '职业转型', context: '苹果濒临破产，回归担任临时CEO',
+        options: [
+          { text: '全面改革，砍掉大部分产品线', chosen: true, metrics: { wealth: { short: -1, long: 2 }, growth: { short: 2, long: 2 }, happiness: { short: -1, long: 1 }, risk: { short: 2, long: 1 }, influence: { short: 2, long: 2 } }, bestGain: '聚焦核心，苹果起死回生', worstLoss: '大幅裁员引发反弹，改革失败' },
+          { text: '保留所有产品，慢慢调整', chosen: false, metrics: { wealth: { short: -1, long: -2 }, growth: { short: -1, long: -1 }, happiness: { short: 0, long: 0 }, risk: { short: 1, long: 1 }, influence: { short: -1, long: -2 } }, bestGain: '平稳过渡，减少冲突', worstLoss: '资源分散，苹果继续亏损至死' },
+          { text: '卖掉苹果，拿钱离场', chosen: false, metrics: { wealth: { short: 1, long: -1 }, growth: { short: -2, long: -2 }, happiness: { short: -1, long: -1 }, risk: { short: -1, long: 0 }, influence: { short: -2, long: -2 } }, bestGain: '套现离场，无风险', worstLoss: '放弃改变世界的机会' }
+        ],
+        outcome: '砍掉70%产品线，聚焦四象限战略。聚焦策略让苹果起死回生。',
+        outcomeType: 'good',
+        insight: '"决定不做什么和决定做什么一样重要。"——聚焦是最核心的管理哲学。' },
+      { age: 46, year: 2001, category: '辞职创业', context: 'MP3播放器市场已有众多产品',
+        options: [
+          { text: '不进入，专注电脑业务', chosen: false, metrics: { wealth: { short: 0, long: -1 }, growth: { short: -1, long: -1 }, happiness: { short: 0, long: 0 }, risk: { short: -1, long: 0 }, influence: { short: 0, long: -1 } }, bestGain: '专注本业，稳健发展', worstLoss: '错过消费电子浪潮' },
+          { text: '做一款革命性的音乐播放器（iPod）', chosen: true, metrics: { wealth: { short: 1, long: 2 }, growth: { short: 2, long: 2 }, happiness: { short: 1, long: 2 }, risk: { short: 1, long: 0 }, influence: { short: 2, long: 2 } }, bestGain: '重新定义音乐产业，为iPhone铺路', worstLoss: '投入巨大但市场不买账' }
+        ],
+        outcome: '推出iPod，"把1000首歌装进口袋"。拯救了音乐产业，也为iPhone奠定基础。',
+        outcomeType: 'good',
+        insight: '不要问用户想要什么，用户不知道他们想要什么，直到你展示给他们。' },
+      { age: 52, year: 2007, category: '辞职创业', context: 'iPhone项目风险巨大，可能蚕食iPod业务',
+        options: [
+          { text: '继续改进iPod，不做手机', chosen: false, metrics: { wealth: { short: 0, long: -1 }, growth: { short: -1, long: -2 }, happiness: { short: 0, long: -1 }, risk: { short: -1, long: 0 }, influence: { short: 0, long: -2 } }, bestGain: '保住iPod市场', worstLoss: '被智能手机时代淘汰' },
+          { text: '冒险做iPhone，重新定义手机', chosen: true, metrics: { wealth: { short: 1, long: 2 }, growth: { short: 2, long: 2 }, happiness: { short: 1, long: 2 }, risk: { short: 2, long: 2 }, influence: { short: 2, long: 2 } }, bestGain: '改变世界，成为全球最有价值公司', worstLoss: 'iPhone失败，蚕食iPod和Mac业务' }
+        ],
+        outcome: 'iPhone彻底改变了手机行业和人类生活方式。成为史上最成功产品之一，苹果成为全球最有价值公司。',
+        outcomeType: 'good',
+        insight: '敢于颠覆自己的成功产品，否则别人会来颠覆你。' },
+      { age: 56, year: 2011, category: '传承交接', context: '癌症恶化，生命最后阶段',
+        options: [
+          { text: '继续工作到最后一刻', chosen: false, metrics: { wealth: { short: 0, long: -1 }, growth: { short: -1, long: -1 }, happiness: { short: -1, long: -1 }, risk: { short: 1, long: 1 }, influence: { short: 0, long: -1 } }, bestGain: '掌控到最后一刻', worstLoss: '无人接班，公司陷入混乱' },
+          { text: '安排好传承，将苹果交给库克', chosen: true, metrics: { wealth: { short: -1, long: 0 }, growth: { short: 0, long: 0 }, happiness: { short: 0, long: 1 }, risk: { short: -1, long: 0 }, influence: { short: 2, long: 2 } }, bestGain: '苹果持续领先，遗产永存', worstLoss: '库克可能不够创新' }
+        ],
+        outcome: '去世前将CEO交给库克，留下详细产品路线图。苹果在他去世后继续保持全球领先。',
+        outcomeType: 'good',
+        insight: '伟大的领导者不仅创造产品，还创造能持续创造产品的组织。' }
+    ]
+  },
+
+  jackma: {
+    name: '马云', avatar: '‍💼', lifespan: '1964-至今', era: 'modern', eraLabel: '当代',
+    subtitle: '从英语教师到阿里巴巴创始人',
+    decisions: [
+      { age: 24, year: 1988, category: '职业转型', context: '大学毕业，面临职业选择',
+        options: [
+          { text: '去政府机关或国企，稳定体面', chosen: false, metrics: { wealth: { short: 1, long: 0 }, growth: { short: 0, long: -1 }, happiness: { short: 1, long: -1 }, risk: { short: -1, long: 0 }, influence: { short: 0, long: -1 } }, bestGain: '铁饭碗，社会地位高', worstLoss: '才华受限，一生平庸' },
+          { text: '去外贸公司，收入更高', chosen: false, metrics: { wealth: { short: 2, long: 0 }, growth: { short: 1, long: 0 }, happiness: { short: 1, long: 0 }, risk: { short: 0, long: 0 }, influence: { short: 0, long: -1 } }, bestGain: '收入丰厚，视野开阔', worstLoss: '错过互联网浪潮' },
+          { text: '去杭州电子工业学院当英语老师', chosen: true, metrics: { wealth: { short: -1, long: 0 }, growth: { short: 1, long: 2 }, happiness: { short: 1, long: 1 }, risk: { short: -1, long: 0 }, influence: { short: 0, long: 1 } }, bestGain: '积累演讲和管理经验', worstLoss: '收入微薄，发展缓慢' }
+        ],
+        outcome: '选择当老师。积累了演讲能力、管理能力和人脉，为日后创业打下基础。',
+        outcomeType: 'good',
+        insight: '第一份工作不一定要最赚钱，但一定要能培养核心能力。' },
+      { age: 31, year: 1995, category: '辞职创业', context: '在美国第一次接触互联网，看到了巨大机会',
+        options: [
+          { text: '继续当老师，安稳生活', chosen: false, metrics: { wealth: { short: 0, long: -1 }, growth: { short: -1, long: -2 }, happiness: { short: 0, long: -1 }, risk: { short: -1, long: 0 }, influence: { short: -1, long: -2 } }, bestGain: '稳定安逸', worstLoss: '错过互联网革命，终身遗憾' },
+          { text: '辞职创业，做中国黄页（互联网信息）', chosen: true, metrics: { wealth: { short: -1, long: 0 }, growth: { short: 2, long: 2 }, happiness: { short: 0, long: 1 }, risk: { short: 2, long: 1 }, influence: { short: 1, long: 2 } }, bestGain: '抢占先机，积累互联网经验', worstLoss: '项目失败，血本无归' },
+          { text: '去外企工作，享受高薪', chosen: false, metrics: { wealth: { short: 2, long: 0 }, growth: { short: 1, long: 0 }, happiness: { short: 1, long: 0 }, risk: { short: 0, long: 0 }, influence: { short: 0, long: -1 } }, bestGain: '高薪舒适，国际化视野', worstLoss: '为他人作嫁衣裳' }
+        ],
+        outcome: '辞去教师工作创办"中国黄页"。项目最终不算成功，但积累了互联网行业经验和人脉。',
+        outcomeType: 'mixed',
+        insight: '看到趋势就要敢于行动，即使第一次尝试不完美，经验本身就是财富。' },
+      { age: 35, year: 1999, category: '辞职创业', context: '在中国黄页和外贸部项目之后，再次面临选择',
+        options: [
+          { text: '去北京发展，加入新浪等大公司', chosen: false, metrics: { wealth: { short: 1, long: 0 }, growth: { short: 1, long: 0 }, happiness: { short: 0, long: -1 }, risk: { short: 0, long: 0 }, influence: { short: 0, long: -1 } }, bestGain: '平台大，资源多', worstLoss: '为他人打工，无法实现梦想' },
+          { text: '回杭州，在公寓里创办阿里巴巴', chosen: true, metrics: { wealth: { short: -2, long: 2 }, growth: { short: 2, long: 2 }, happiness: { short: -1, long: 2 }, risk: { short: 2, long: 1 }, influence: { short: 1, long: 2 } }, bestGain: '改变中国电商，成就商业帝国', worstLoss: '再次失败，负债累累' },
+          { text: '做政府信息化项目，稳定收入', chosen: false, metrics: { wealth: { short: 1, long: -1 }, growth: { short: 0, long: -1 }, happiness: { short: 1, long: 0 }, risk: { short: -1, long: 0 }, influence: { short: 0, long: -1 } }, bestGain: '稳定可靠，风险低', worstLoss: '平庸度日，无法改变世界' }
+        ],
+        outcome: '带18个创始人在杭州公寓创办阿里巴巴，初始资金50万。选择B2B电商方向，服务中小企业。',
+        outcomeType: 'good',
+        insight: '创业不一定要在一线城市，关键是找到正确的市场切入点。' },
+      { age: 39, year: 2003, category: '孤注一掷', context: '阿里B2B已盈利，是否进入C2C与eBay竞争',
+        options: [
+          { text: '专注B2B，不冒险进入新领域', chosen: false, metrics: { wealth: { short: 0, long: -1 }, growth: { short: 0, long: -1 }, happiness: { short: 1, long: 0 }, risk: { short: -1, long: 0 }, influence: { short: 0, long: -1 } }, bestGain: '稳健发展，保住现有成果', worstLoss: '错过C2C市场，被后来者超越' },
+          { text: '秘密创建淘宝网，与eBay正面竞争', chosen: true, metrics: { wealth: { short: -1, long: 2 }, growth: { short: 2, long: 2 }, happiness: { short: 0, long: 1 }, risk: { short: 2, long: 1 }, influence: { short: 2, long: 2 } }, bestGain: '击败eBay，占领中国C2C市场', worstLoss: '烧钱大战，拖垮主营业务' }
+        ],
+        outcome: '秘密组建团队创建淘宝，采用免费策略对抗eBay收费模式。3年后淘宝击败eBay中国，占80%市场份额。',
+        outcomeType: 'good',
+        insight: '在核心业务稳定时，要敢于开辟第二战场。免费策略在中国市场被证明有效。' },
+      { age: 43, year: 2007, category: '辞职创业', context: '阿里B2B上市，公司估值巨大',
+        options: [
+          { text: '专注电商，不碰金融', chosen: false, metrics: { wealth: { short: 1, long: -1 }, growth: { short: 0, long: -1 }, happiness: { short: 1, long: 0 }, risk: { short: -1, long: 0 }, influence: { short: 0, long: -1 } }, bestGain: '专注本业，风险可控', worstLoss: '错过支付革命，被后来者超越' },
+          { text: '发展支付宝，建立支付和信用体系', chosen: true, metrics: { wealth: { short: 1, long: 2 }, growth: { short: 2, long: 2 }, happiness: { short: 1, long: 1 }, risk: { short: 2, long: 1 }, influence: { short: 2, long: 2 } }, bestGain: '成为中国最大支付平台', worstLoss: '监管风险，可能血本无归' }
+        ],
+        outcome: '支付宝从担保交易工具发展为独立金融平台，后演变为蚂蚁集团，成为中国最大移动支付和金融科技平台。',
+        outcomeType: 'good',
+        insight: '解决用户痛点的产品往往能成长为巨大的生态。支付是电商的基础设施。' },
+      { age: 49, year: 2013, category: '传承交接', context: '阿里如日中天，宣布将CEO交给陆兆禧',
+        options: [
+          { text: '继续担任CEO，掌控公司', chosen: false, metrics: { wealth: { short: 1, long: 0 }, growth: { short: 0, long: -1 }, happiness: { short: -1, long: -1 }, risk: { short: 1, long: 1 }, influence: { short: 1, long: 0 } }, bestGain: '继续掌控帝国', worstLoss: '精力不济，决策失误' },
+          { text: '交棒给年轻人，自己转向战略和公益', chosen: true, metrics: { wealth: { short: 0, long: 0 }, growth: { short: 1, long: 1 }, happiness: { short: 2, long: 2 }, risk: { short: 0, long: 0 }, influence: { short: 1, long: 2 } }, bestGain: '组织永葆活力，个人获得自由', worstLoss: '接班人失误，帝国崩塌' }
+        ],
+        outcome: '逐步将管理权交给年轻团队，自己专注战略、教育和公益。2019年正式退休。让阿里保持组织活力。',
+        outcomeType: 'good',
+        insight: '伟大的领导者知道何时放手。传承比个人掌控更重要。' },
+      { age: 55, year: 2019, category: '职业转型', context: '正式从阿里巴巴退休后',
+        options: [
+          { text: '完全退休，享受生活', chosen: false, metrics: { wealth: { short: 0, long: -1 }, growth: { short: -1, long: -1 }, happiness: { short: 2, long: 1 }, risk: { short: -1, long: 0 }, influence: { short: -1, long: -2 } }, bestGain: '悠闲自在，享受生活', worstLoss: '影响力下降，被遗忘' },
+          { text: '专注教育公益和农业技术', chosen: true, metrics: { wealth: { short: -1, long: 0 }, growth: { short: 1, long: 1 }, happiness: { short: 2, long: 2 }, risk: { short: 0, long: 0 }, influence: { short: 1, long: 1 } }, bestGain: '回馈社会，实现人生价值', worstLoss: '卷入争议，名声受损' },
+          { text: '继续参与公司管理', chosen: false, metrics: { wealth: { short: 1, long: 0 }, growth: { short: 0, long: -1 }, happiness: { short: -1, long: -1 }, risk: { short: 1, long: 1 }, influence: { short: 1, long: 0 } }, bestGain: '保持影响力', worstLoss: '无法真正放手，组织无法独立' }
+        ],
+        outcome: '退休后专注乡村教育、环境保护和农业技术。2020年后因蚂蚁上市被叫停等事件，大幅减少公开活动。',
+        outcomeType: 'mixed',
+        insight: '功成身退是智慧，但商业世界的复杂性意味着完全脱离并不容易。' }
+    ]
+  },
+
+  wangyangming: {
+    name: '王阳明', avatar: '🧠', lifespan: '1472-1529', era: 'ancient', eraLabel: '明代',
+    subtitle: '从科举失意到心学宗师的传奇人生',
+    decisions: [
+      { age: 28, year: 1500, category: '长期深耕', context: '两次会试落第，同窗嘲笑',
+        options: [
+          { text: '继续苦读，追求功名', chosen: false, metrics: { wealth: { short: -1, long: 0 }, growth: { short: 1, long: 1 }, happiness: { short: -2, long: -1 }, risk: { short: 0, long: 0 }, influence: { short: 0, long: 0 } }, bestGain: '最终考中进士', worstLoss: '陷入科举执念' },
+          { text: '转向内心探索，追求圣贤之道', chosen: true, metrics: { wealth: { short: -1, long: 0 }, growth: { short: 2, long: 2 }, happiness: { short: 1, long: 2 }, risk: { short: 1, long: 1 }, influence: { short: 0, long: 2 } }, bestGain: '开启心学之路', worstLoss: '偏离主流，被人忽视' },
+          { text: '放弃仕途，归隐山林', chosen: false, metrics: { wealth: { short: -2, long: -2 }, growth: { short: 0, long: 0 }, happiness: { short: 1, long: 1 }, risk: { short: 0, long: 0 }, influence: { short: -2, long: -2 } }, bestGain: '远离世俗纷扰', worstLoss: '才华埋没，无法影响社会' }
+        ],
+        outcome: '说"世以不得第为耻，吾以不得第动心为耻"。开始深入研究心性之学，拜访名僧大儒。',
+        outcomeType: 'good',
+        insight: '真正的失败不是落第，而是被失败动摇内心。' },
+      { age: 35, year: 1507, category: '孤注一掷', context: '因上疏救戴铣等言官，得罪刘瑾被廷杖四十，贬谪贵州龙场',
+        options: [
+          { text: '认罪求情，争取从轻处理', chosen: false, metrics: { wealth: { short: 0, long: 0 }, growth: { short: -1, long: -1 }, happiness: { short: -1, long: -1 }, risk: { short: -1, long: 0 }, influence: { short: -1, long: -1 } }, bestGain: '保住官位', worstLoss: '丧失气节' },
+          { text: '坦然接受，赴谪龙场', chosen: true, metrics: { wealth: { short: -2, long: -1 }, growth: { short: 2, long: 2 }, happiness: { short: -2, long: 1 }, risk: { short: 2, long: 1 }, influence: { short: 1, long: 2 } }, bestGain: '龙场悟道，创立心学', worstLoss: '瘴疠之地，可能丧命' },
+          { text: '逃亡避祸，隐居民间', chosen: false, metrics: { wealth: { short: -1, long: -1 }, growth: { short: 0, long: 0 }, happiness: { short: 0, long: 0 }, risk: { short: 1, long: 0 }, influence: { short: -2, long: -2 } }, bestGain: '保全性命', worstLoss: '永远失去仕途和影响力' }
+        ],
+        outcome: '在龙场瘴疠之地，随从皆病，他亲自照顾。在石棺中静坐思考，终于悟出"圣人之道，吾性自足"。',
+        outcomeType: 'good',
+        insight: '最大的困境往往是最大的转机。龙场悟道改变了中国哲学史。' },
+      { age: 42, year: 1514, category: '坚守信念', context: '在江西平定宁王朱宸濠叛乱，仅用35天',
+        options: [
+          { text: '邀功请赏，巩固地位', chosen: false, metrics: { wealth: { short: 2, long: 0 }, growth: { short: 0, long: -1 }, happiness: { short: 1, long: 0 }, risk: { short: 1, long: 1 }, influence: { short: 1, long: 0 } }, bestGain: '获得封赏', worstLoss: '引起朝廷猜忌' },
+          { text: '将功劳归于朝廷，继续讲学', chosen: true, metrics: { wealth: { short: -1, long: 0 }, growth: { short: 1, long: 1 }, happiness: { short: 1, long: 2 }, risk: { short: -1, long: 0 }, influence: { short: 2, long: 2 } }, bestGain: '避免政治斗争，专注学问', worstLoss: '错失升迁机会' },
+          { text: '借机扩大军权，割据一方', chosen: false, metrics: { wealth: { short: 2, long: -2 }, growth: { short: 0, long: -2 }, happiness: { short: 0, long: -2 }, risk: { short: 2, long: 2 }, influence: { short: 1, long: -2 } }, bestGain: '成为一方诸侯', worstLoss: '身败名裂，遗臭万年' }
+        ],
+        outcome: '平叛后遭张忠、许泰等佞臣诬陷，险些获罪。他选择退隐讲学，创立阳明学派。',
+        outcomeType: 'mixed',
+        insight: '功高不震主，是真正的智慧。学问比权力更能流传千古。' },
+      { age: 56, year: 1528, category: '传承交接', context: '病重临终之际',
+        options: [
+          { text: '著书立说，完善心学体系', chosen: false, metrics: { wealth: { short: 0, long: 0 }, growth: { short: 1, long: 1 }, happiness: { short: 0, long: 0 }, risk: { short: 0, long: 0 }, influence: { short: 1, long: 2 } }, bestGain: '完善理论体系', worstLoss: '身体透支，加速离世' },
+          { text: '留下"此心光明，亦复何言"遗言', chosen: true, metrics: { wealth: { short: 0, long: 0 }, growth: { short: 0, long: 0 }, happiness: { short: 2, long: 2 }, risk: { short: 0, long: 0 }, influence: { short: 2, long: 2 } }, bestGain: '心学精神永存', worstLoss: '理论未能完全系统化' },
+          { text: '安排后事，确保学派传承', chosen: false, metrics: { wealth: { short: 0, long: 0 }, growth: { short: 0, long: 0 }, happiness: { short: 1, long: 0 }, risk: { short: 0, long: 0 }, influence: { short: 1, long: 1 } }, bestGain: '学派有序传承', worstLoss: '过于执着形式' }
+        ],
+        outcome: '弟子问有何遗言，他说："此心光明，亦复何言。"心学后传至日本，影响明治维新。',
+        outcomeType: 'good',
+        insight: '真正的学问不在书本，而在内心。光明磊落，死而无憾。' }
+    ]
+  },
+
+  renzhengfei: {
+    name: '任正非', avatar: '📱', lifespan: '1944-至今', era: 'modern', eraLabel: '当代',
+    subtitle: '从军人到华为创始人的传奇创业路',
+    decisions: [
+      { age: 43, year: 1987, category: '辞职创业', context: '从部队转业后被骗，负债200万',
+        options: [
+          { text: '找份稳定工作还债', chosen: false, metrics: { wealth: { short: 1, long: -1 }, growth: { short: 0, long: -1 }, happiness: { short: 0, long: -1 }, risk: { short: -1, long: 0 }, influence: { short: 0, long: -1 } }, bestGain: '稳定还债', worstLoss: '错过时代机遇' },
+          { text: '集资2.1万创办华为，代理交换机', chosen: true, metrics: { wealth: { short: -1, long: 2 }, growth: { short: 2, long: 2 }, happiness: { short: 0, long: 1 }, risk: { short: 2, long: 1 }, influence: { short: 1, long: 2 } }, bestGain: '开启通信事业', worstLoss: '血本无归，负债更多' },
+          { text: '做房地产生意', chosen: false, metrics: { wealth: { short: 2, long: 0 }, growth: { short: 0, long: -1 }, happiness: { short: 1, long: -1 }, risk: { short: 1, long: 1 }, influence: { short: 0, long: -1 } }, bestGain: '快速赚钱', worstLoss: '偏离技术路线' }
+        ],
+        outcome: '在深圳南油大厦一间破旧办公室里创办华为，从代理交换机起步。',
+        outcomeType: 'good',
+        insight: '43岁创业不晚。军人的执行力成为华为的核心竞争力。' },
+      { age: 49, year: 1993, category: '孤注一掷', context: '华为资金紧张，是否投入研发自有交换机',
+        options: [
+          { text: '继续代理，稳扎稳打', chosen: false, metrics: { wealth: { short: 1, long: -1 }, growth: { short: -1, long: -2 }, happiness: { short: 1, long: 0 }, risk: { short: -1, long: 0 }, influence: { short: 0, long: -2 } }, bestGain: '保住现金流', worstLoss: '永远受制于人' },
+          { text: '破釜沉舟，研发C&C08交换机', chosen: true, metrics: { wealth: { short: -2, long: 2 }, growth: { short: 2, long: 2 }, happiness: { short: -1, long: 2 }, risk: { short: 2, long: 1 }, influence: { short: 2, long: 2 } }, bestGain: '掌握核心技术', worstLoss: '研发失败，公司倒闭' },
+          { text: '与外企合资，换取技术', chosen: false, metrics: { wealth: { short: 1, long: 0 }, growth: { short: 0, long: -1 }, happiness: { short: 1, long: 0 }, risk: { short: -1, long: 0 }, influence: { short: 0, long: -1 } }, bestGain: '快速获得技术', worstLoss: '失去自主权' }
+        ],
+        outcome: '他说"不研发C&C08，我们就得死"。赌上全部身家，研发成功，华为从此走上自主研发之路。',
+        outcomeType: 'good',
+        insight: '核心技术买不来。生死关头敢于all in，才能涅槃重生。' },
+      { age: 54, year: 1998, category: '职业转型', context: '华为如日中天，是否引入IBM管理咨询',
+        options: [
+          { text: '保持中国式管理', chosen: false, metrics: { wealth: { short: 1, long: -1 }, growth: { short: -1, long: -2 }, happiness: { short: 1, long: 0 }, risk: { short: 0, long: 0 }, influence: { short: 0, long: -1 } }, bestGain: '保持灵活性', worstLoss: '无法国际化' },
+          { text: '花40亿引入IBM IPD/ISC流程', chosen: true, metrics: { wealth: { short: -2, long: 2 }, growth: { short: 2, long: 2 }, happiness: { short: -1, long: 1 }, risk: { short: 1, long: 1 }, influence: { short: 1, long: 2 } }, bestGain: '建立世界级管理体系', worstLoss: '水土不服，效率下降' },
+          { text: '自己摸索管理方法', chosen: false, metrics: { wealth: { short: 0, long: 0 }, growth: { short: 1, long: 0 }, happiness: { short: 0, long: 0 }, risk: { short: 1, long: 1 }, influence: { short: 0, long: 0 } }, bestGain: '节省咨询费', worstLoss: '重复造轮子' }
+        ],
+        outcome: '他说"先僵化、后优化、再固化"。华为从此脱胎换骨，具备全球化能力。',
+        outcomeType: 'good',
+        insight: '向最优秀的人学习，是成长的捷径。管理变革需要壮士断腕的决心。' },
+      { age: 65, year: 2009, category: '传承交接', context: '华为成为通信巨头，接班人问题',
+        options: [
+          { text: '让子女接班', chosen: false, metrics: { wealth: { short: 1, long: 0 }, growth: { short: 0, long: -1 }, happiness: { short: 1, long: 0 }, risk: { short: 1, long: 1 }, influence: { short: 0, long: -1 } }, bestGain: '家族传承', worstLoss: '能力不足，公司衰落' },
+          { text: '建立轮值CEO制度', chosen: true, metrics: { wealth: { short: 0, long: 1 }, growth: { short: 1, long: 2 }, happiness: { short: 1, long: 1 }, risk: { short: 0, long: 0 }, influence: { short: 2, long: 2 } }, bestGain: '集体领导，避免独裁', worstLoss: '决策效率降低' },
+          { text: '引入外部职业经理人', chosen: false, metrics: { wealth: { short: 0, long: 0 }, growth: { short: 1, long: 0 }, happiness: { short: 0, long: 0 }, risk: { short: 1, long: 1 }, influence: { short: 1, long: 0 } }, bestGain: '专业化管理', worstLoss: '文化稀释' }
+        ],
+        outcome: '创立轮值董事长制度，郭平、徐直军、胡厚崑轮流执政。华为成为没有真正接班人的巨头。',
+        outcomeType: 'good',
+        insight: '制度比个人更可靠。集体领导是大型企业的最佳选择。' },
+      { age: 75, year: 2019, category: '长期深耕', context: '美国制裁，芯片断供',
+        options: [
+          { text: '妥协求和，接受美国条件', chosen: false, metrics: { wealth: { short: 1, long: -2 }, growth: { short: -2, long: -2 }, happiness: { short: -1, long: -2 }, risk: { short: -1, long: 0 }, influence: { short: -2, long: -2 } }, bestGain: '解除制裁', worstLoss: '丧失尊严和自主权' },
+          { text: '启用备胎计划，自主研发芯片', chosen: true, metrics: { wealth: { short: -2, long: 1 }, growth: { short: 2, long: 2 }, happiness: { short: 1, long: 2 }, risk: { short: 2, long: 1 }, influence: { short: 2, long: 2 } }, bestGain: '实现自主可控', worstLoss: '短期业绩大幅下滑' },
+          { text: '出售手机业务，保全其他', chosen: false, metrics: { wealth: { short: 2, long: -1 }, growth: { short: 0, long: -1 }, happiness: { short: 0, long: -1 }, risk: { short: -1, long: 0 }, influence: { short: -1, long: -1 } }, bestGain: '获得现金流', worstLoss: '失去终端品牌' }
+        ],
+        outcome: '海思麒麟芯片备胎转正，鸿蒙系统发布。他说"除了胜利，我们无路可走"。',
+        outcomeType: 'good',
+        insight: '危机时刻最能体现企业家的担当。备胎计划体现了战略远见。' }
+    ]
+  },
+
+  elonmusk: {
+    name: '马斯克', avatar: '🚀', lifespan: '1971-至今', era: 'modern', eraLabel: '当代',
+    subtitle: '从PayPal到特斯拉、SpaceX的连续创业者',
+    decisions: [
+      { age: 28, year: 1999, category: '辞职创业', context: 'Zip2和X.com（PayPal前身）成功后',
+        options: [
+          { text: '继续做互联网支付', chosen: false, metrics: { wealth: { short: 2, long: 0 }, growth: { short: 1, long: 0 }, happiness: { short: 1, long: 0 }, risk: { short: 0, long: 0 }, influence: { short: 1, long: 0 } }, bestGain: '稳定赚钱', worstLoss: '错过硬科技机会' },
+          { text: '投资电动车（特斯拉）和航天（SpaceX）', chosen: true, metrics: { wealth: { short: -2, long: 2 }, growth: { short: 2, long: 2 }, happiness: { short: 0, long: 2 }, risk: { short: 2, long: 1 }, influence: { short: 2, long: 2 } }, bestGain: '改变人类未来', worstLoss: '全部赔光' },
+          { text: '做风险投资人', chosen: false, metrics: { wealth: { short: 1, long: 1 }, growth: { short: 1, long: 0 }, happiness: { short: 1, long: 0 }, risk: { short: -1, long: 0 }, influence: { short: 0, long: 0 } }, bestGain: '稳健收益', worstLoss: '无法实现宏大愿景' }
+        ],
+        outcome: '将PayPal出售给eBay获得的1.65亿美元全部投入特斯拉和SpaceX，几乎破产。',
+        outcomeType: 'mixed',
+        insight: '真正的创业者敢于all in。但这也让他经历了最艰难的时期。' },
+      { age: 37, year: 2008, category: '长期深耕', context: '特斯拉濒临破产，SpaceX三次发射失败',
+        options: [
+          { text: '放弃一个公司，保全另一个', chosen: false, metrics: { wealth: { short: 0, long: -1 }, growth: { short: -1, long: -1 }, happiness: { short: -1, long: -1 }, risk: { short: -1, long: 0 }, influence: { short: 0, long: -1 } }, bestGain: '至少保住一个', worstLoss: '另一个彻底失败' },
+          { text: '借债投入，两个都救', chosen: true, metrics: { wealth: { short: -2, long: 2 }, growth: { short: 2, long: 2 }, happiness: { short: -2, long: 2 }, risk: { short: 2, long: 1 }, influence: { short: 2, long: 2 } }, bestGain: '两个都成功', worstLoss: '彻底破产' },
+          { text: '寻求收购，及时止损', chosen: false, metrics: { wealth: { short: 1, long: -2 }, growth: { short: -1, long: -2 }, happiness: { short: 0, long: -1 }, risk: { short: -1, long: 0 }, influence: { short: -1, long: -2 } }, bestGain: '避免更大损失', worstLoss: '梦想破灭' }
+        ],
+        outcome: '2008年圣诞节前最后一天，特斯拉获得紧急融资，SpaceX第四次发射成功。他说"我从未想过放弃"。',
+        outcomeType: 'good',
+        insight: '坚持到底才能看到奇迹。但这也需要强大的心理承受能力。' },
+      { age: 41, year: 2012, category: '孤注一掷', context: 'SpaceX龙飞船成功对接国际空间站',
+        options: [
+          { text: '专注商业航天服务', chosen: false, metrics: { wealth: { short: 2, long: 0 }, growth: { short: 1, long: 0 }, happiness: { short: 1, long: 0 }, risk: { short: 0, long: 0 }, influence: { short: 1, long: 0 } }, bestGain: '稳定盈利', worstLoss: '错过火星计划' },
+          { text: '启动火星殖民计划', chosen: true, metrics: { wealth: { short: -2, long: 2 }, growth: { short: 2, long: 2 }, happiness: { short: 1, long: 2 }, risk: { short: 2, long: 1 }, influence: { short: 2, long: 2 } }, bestGain: '让人类成为多星球物种', worstLoss: '耗资巨大，难以实现' },
+          { text: '与NASA合作，做太空运输', chosen: false, metrics: { wealth: { short: 1, long: 0 }, growth: { short: 1, long: 0 }, happiness: { short: 0, long: 0 }, risk: { short: -1, long: 0 }, influence: { short: 1, long: 0 } }, bestGain: '稳定收入', worstLoss: '缺乏自主性' }
+        ],
+        outcome: '提出火星殖民计划，目标20年内送人上火星。研发可重复使用的猎鹰重型火箭。',
+        outcomeType: 'mixed',
+        insight: '伟大的愿景需要疯狂的目标。即使不能完全实现，也能推动人类进步。' },
+      { age: 49, year: 2020, category: '职业转型', context: '特斯拉成为电动车龙头，市值超越丰田',
+        options: [
+          { text: '专注汽车业务', chosen: false, metrics: { wealth: { short: 2, long: 0 }, growth: { short: 0, long: -1 }, happiness: { short: 1, long: 0 }, risk: { short: 0, long: 0 }, influence: { short: 1, long: 0 } }, bestGain: '稳定增长', worstLoss: '错失其他机会' },
+          { text: '同时推进脑机接口（Neuralink）和隧道（Boring Company）', chosen: true, metrics: { wealth: { short: -1, long: 1 }, growth: { short: 2, long: 2 }, happiness: { short: 0, long: 1 }, risk: { short: 2, long: 1 }, influence: { short: 2, long: 2 } }, bestGain: '布局多个未来领域', worstLoss: '精力分散，都做不好' },
+          { text: '投资AI和机器人', chosen: false, metrics: { wealth: { short: 1, long: 1 }, growth: { short: 1, long: 1 }, happiness: { short: 1, long: 0 }, risk: { short: 1, long: 1 }, influence: { short: 1, long: 1 } }, bestGain: '抓住AI浪潮', worstLoss: '竞争激烈' }
+        ],
+        outcome: '同时运营特斯拉、SpaceX、Neuralink、Boring Company、xAI等多家公司，被称为"现实版钢铁侠"。',
+        outcomeType: 'mixed',
+        insight: '多任务并行是天才的特质，但也可能导致每个都做不好。' },
+      { age: 54, year: 2025, category: '长期深耕', context: '收购Twitter（现X）后争议不断',
+        options: [
+          { text: '回归技术，减少社交媒体', chosen: false, metrics: { wealth: { short: 0, long: 0 }, growth: { short: 0, long: 0 }, happiness: { short: 1, long: 1 }, risk: { short: -1, long: 0 }, influence: { short: -1, long: -1 } }, bestGain: '减少争议', worstLoss: '失去话语权' },
+          { text: '继续推动言论自由改革', chosen: true, metrics: { wealth: { short: -1, long: 1 }, growth: { short: 1, long: 1 }, happiness: { short: 0, long: 1 }, risk: { short: 2, long: 1 }, influence: { short: 2, long: 2 } }, bestGain: '改变社交媒体生态', worstLoss: '广告商流失，持续亏损' },
+          { text: '出售Twitter，专注其他', chosen: false, metrics: { wealth: { short: 1, long: -1 }, growth: { short: -1, long: -1 }, happiness: { short: 1, long: 0 }, risk: { short: -1, long: 0 }, influence: { short: -1, long: -1 } }, bestGain: '及时止损', worstLoss: '承认失败' }
+        ],
+        outcome: '坚持改造Twitter，推行言论自由政策。争议不断，但他认为这是"文明的基础设施"。',
+        outcomeType: 'mixed',
+        insight: '有些决策短期看是错的，但长期可能对。时间会证明一切。' }
+    ]
+  },
+
+  libai: {
+    name: '李白', avatar: '🍶', lifespan: '701-762', era: 'ancient', eraLabel: '唐代',
+    subtitle: '从仗剑天涯到诗仙的浪漫一生',
+    decisions: [
+      { age: 25, year: 726, category: '职业转型', context: '仗剑去国，辞亲远游',
+        options: [
+          { text: '参加科举，走仕途', chosen: false, metrics: { wealth: { short: 0, long: 0 }, growth: { short: 1, long: 0 }, happiness: { short: -1, long: -1 }, risk: { short: 0, long: 0 }, influence: { short: 0, long: 0 } }, bestGain: '获得官职', worstLoss: '失去自由' },
+          { text: '游历名山大川，以诗成名', chosen: true, metrics: { wealth: { short: -1, long: 1 }, growth: { short: 2, long: 2 }, happiness: { short: 2, long: 2 }, risk: { short: 1, long: 1 }, influence: { short: 2, long: 2 } }, bestGain: '诗名远播，流芳百世', worstLoss: '生活不稳定' },
+          { text: '经商致富', chosen: false, metrics: { wealth: { short: 2, long: 0 }, growth: { short: 0, long: -1 }, happiness: { short: 0, long: -1 }, risk: { short: 0, long: 0 }, influence: { short: -1, long: -2 } }, bestGain: '财富自由', worstLoss: '才华埋没' }
+        ],
+        outcome: '"仗剑去国，辞亲远游"。游历大半个中国，写下大量山水诗，诗名渐起。',
+        outcomeType: 'good',
+        insight: '选择适合天性的道路，比选择"正确"的道路更重要。' },
+      { age: 42, year: 743, category: '孤注一掷', context: '被唐玄宗召入长安，供奉翰林',
+        options: [
+          { text: '谨小慎微，做宫廷诗人', chosen: false, metrics: { wealth: { short: 1, long: 0 }, growth: { short: -1, long: -1 }, happiness: { short: -1, long: -1 }, risk: { short: -1, long: 0 }, influence: { short: 0, long: 0 } }, bestGain: '安稳度日', worstLoss: '失去自我' },
+          { text: '保持狂放本色，"天子呼来不上船"', chosen: true, metrics: { wealth: { short: 0, long: -1 }, growth: { short: 1, long: 1 }, happiness: { short: 2, long: 2 }, risk: { short: 2, long: 1 }, influence: { short: 2, long: 2 } }, bestGain: '诗仙美名', worstLoss: '被赐金放还' },
+          { text: '结交权贵，谋求高位', chosen: false, metrics: { wealth: { short: 2, long: 0 }, growth: { short: 0, long: -1 }, happiness: { short: -1, long: -1 }, risk: { short: 1, long: 1 }, influence: { short: 1, long: 0 } }, bestGain: '获得实权', worstLoss: '失去诗人气质' }
+        ],
+        outcome: '"力士脱靴，贵妃捧砚"。三年后被"赐金放还"，但诗仙之名永垂不朽。',
+        outcomeType: 'mixed',
+        insight: '保持本色可能失去官位，但能赢得千古美名。' },
+      { age: 55, year: 756, category: '逆境翻盘', context: '安史之乱中，加入永王李璘幕府',
+        options: [
+          { text: '隐居避乱', chosen: false, metrics: { wealth: { short: -1, long: -1 }, growth: { short: -1, long: -1 }, happiness: { short: 0, long: 0 }, risk: { short: -1, long: 0 }, influence: { short: -1, long: -1 } }, bestGain: '保全性命', worstLoss: '错过报国机会' },
+          { text: '加入永王，希望建功立业', chosen: true, metrics: { wealth: { short: -2, long: -2 }, growth: { short: 0, long: 0 }, happiness: { short: -2, long: -2 }, risk: { short: 2, long: 2 }, influence: { short: 1, long: 0 } }, bestGain: '平叛立功', worstLoss: '被判流放' },
+          { text: '投奔肃宗', chosen: false, metrics: { wealth: { short: 0, long: 0 }, growth: { short: 0, long: 0 }, happiness: { short: 0, long: 0 }, risk: { short: 1, long: 0 }, influence: { short: 0, long: 0 } }, bestGain: '站对队伍', worstLoss: '失去独立性' }
+        ],
+        outcome: '永王兵败，李白被判流放夜郎。途中遇赦，写下"朝辞白帝彩云间"。',
+        outcomeType: 'bad',
+        insight: '诗人的政治天真可能导致灾难。但苦难也是诗歌的养分。' },
+      { age: 61, year: 762, category: '长期深耕', context: '晚年穷困潦倒，投奔族叔李阳冰',
+        options: [
+          { text: '接受朝廷任命，做小官', chosen: false, metrics: { wealth: { short: 1, long: 0 }, growth: { short: 0, long: 0 }, happiness: { short: -1, long: -1 }, risk: { short: 0, long: 0 }, influence: { short: 0, long: 0 } }, bestGain: '生活稳定', worstLoss: '失去自由' },
+          { text: '继续游历，以诗酒终老', chosen: true, metrics: { wealth: { short: -1, long: -1 }, growth: { short: 1, long: 1 }, happiness: { short: 2, long: 2 }, risk: { short: 1, long: 1 }, influence: { short: 2, long: 2 } }, bestGain: '诗仙美名', worstLoss: '穷困而死' },
+          { text: '归隐山林', chosen: false, metrics: { wealth: { short: -1, long: -1 }, growth: { short: 0, long: 0 }, happiness: { short: 1, long: 1 }, risk: { short: 0, long: 0 }, influence: { short: 0, long: 0 } }, bestGain: '远离纷扰', worstLoss: '默默无闻' }
+        ],
+        outcome: '传说在当涂江上，醉酒后捞月而溺。一生浪漫，死也浪漫。',
+        outcomeType: 'mixed',
+        insight: '诗人的结局往往悲壮，但他们的精神永存。' }
+    ]
+  },
+
+  taoyuanming: {
+    name: '陶渊明', avatar: '🌾', lifespan: '365-427', era: 'ancient', eraLabel: '东晋',
+    subtitle: '不为五斗米折腰，归隐田园',
+    decisions: [
+      { age: 29, year: 393, category: '稳扎稳打', context: '家贫亲老，出仕为江州祭酒',
+        options: [
+          { text: '继续做官，积累财富和人脉', chosen: false, metrics: { wealth: { short: 2, long: 1 }, growth: { short: 1, long: 0 }, happiness: { short: -1, long: -2 }, risk: { short: 0, long: 0 }, influence: { short: 1, long: 0 } }, bestGain: '仕途顺利，光宗耀祖', worstLoss: '违背本心，精神痛苦' },
+          { text: '辞官归隐，躬耕田园', chosen: true, metrics: { wealth: { short: -2, long: -1 }, growth: { short: 1, long: 2 }, happiness: { short: 2, long: 2 }, risk: { short: 1, long: 1 }, influence: { short: -1, long: 2 } }, bestGain: '精神自由，创作不朽诗篇', worstLoss: '生活贫困，家人受苦' }
+        ],
+        outcome: '不堪吏职，少日自解归。"质性自然，非矫厉所得。"',
+        outcomeType: 'good',
+        insight: '本性难移，强迫自己做不适合的事，痛苦的是自己。' },
+      { age: 41, year: 405, category: '坚守信念', context: '为彭泽令，郡遣督邮至，应束带见之',
+        options: [
+          { text: '束带迎见督邮，保住官职', chosen: false, metrics: { wealth: { short: 2, long: 1 }, growth: { short: -1, long: -1 }, happiness: { short: -2, long: -2 }, risk: { short: 0, long: 0 }, influence: { short: 0, long: -1 } }, bestGain: '继续为官，改善生活', worstLoss: '人格受辱，精神崩溃' },
+          { text: '辞官归田，"不为五斗米折腰"', chosen: true, metrics: { wealth: { short: -2, long: -2 }, growth: { short: 2, long: 2 }, happiness: { short: 2, long: 2 }, risk: { short: 2, long: 1 }, influence: { short: -1, long: 2 } }, bestGain: '人格独立，千古美名', worstLoss: '生活困顿，子女挨饿' },
+          { text: '调任他职，避免冲突', chosen: false, metrics: { wealth: { short: 1, long: 0 }, growth: { short: 0, long: 0 }, happiness: { short: -1, long: -1 }, risk: { short: 0, long: 0 }, influence: { short: 0, long: 0 } }, bestGain: '暂时避免冲突', worstLoss: '继续违背本心' }
+        ],
+        outcome: '叹曰："我岂能为五斗米折腰向乡里小儿！"即日解绶去职，赋《归去来兮辞》。',
+        outcomeType: 'good',
+        insight: '有些底线不能突破，否则一生都会后悔。' },
+      { age: 50, year: 414, category: '长期深耕', context: '归隐多年，生活贫困，"夏日抱长饥，寒夜无被眠"',
+        options: [
+          { text: '重新出仕，改善生活', chosen: false, metrics: { wealth: { short: 2, long: 1 }, growth: { short: -1, long: -1 }, happiness: { short: 1, long: -1 }, risk: { short: 0, long: 0 }, influence: { short: 0, long: -1 } }, bestGain: '生活改善，家人安乐', worstLoss: '前功尽弃，人格受损' },
+          { text: '坚持归隐，安贫乐道', chosen: true, metrics: { wealth: { short: -1, long: -1 }, growth: { short: 1, long: 1 }, happiness: { short: 1, long: 2 }, risk: { short: 1, long: 1 }, influence: { short: 0, long: 2 } }, bestGain: '精神圆满，诗作不朽', worstLoss: '生活持续贫困' }
+        ],
+        outcome: '"采菊东篱下，悠然见南山。"贫困中保持精神自由，创作大量田园诗。',
+        outcomeType: 'good',
+        insight: '真正的富足不在于物质，而在于精神的满足。' },
+      { age: 62, year: 427, category: '坚守信念', context: '临终前作《自祭文》《挽歌诗》',
+        options: [
+          { text: '后悔归隐，告诫子孙求仕', chosen: false, metrics: { wealth: { short: 0, long: 0 }, growth: { short: -2, long: -2 }, happiness: { short: -2, long: -2 }, risk: { short: 0, long: 0 }, influence: { short: -2, long: -2 } }, bestGain: '无', worstLoss: '否定一生，精神崩溃' },
+          { text: '"死去何所道，托体同山阿"', chosen: true, metrics: { wealth: { short: 0, long: 0 }, growth: { short: 0, long: 0 }, happiness: { short: 2, long: 2 }, risk: { short: 0, long: 0 }, influence: { short: 1, long: 2 } }, bestGain: '精神圆满，千古流芳', worstLoss: '无' }
+        ],
+        outcome: '"寿考非所祈，化去不复悔。"一生无悔，精神圆满。',
+        outcomeType: 'good',
+        insight: '人生最大的成功是按照自己的意愿过一生。' }
+    ]
+  },
+
+  teresa: {
+    name: '特蕾莎修女', avatar: '✝️', lifespan: '1910-1997', era: 'modern', eraLabel: '当代',
+    subtitle: '放弃舒适生活，为穷人中的穷人服务',
+    decisions: [
+      { age: 18, year: 1928, category: '考研深造', context: '在爱尔兰加入洛雷托修女会',
+        options: [
+          { text: '留在家乡，过普通生活', chosen: false, metrics: { wealth: { short: 0, long: 0 }, growth: { short: 0, long: -1 }, happiness: { short: 1, long: 0 }, risk: { short: -1, long: 0 }, influence: { short: -2, long: -2 } }, bestGain: '生活安稳，家人陪伴', worstLoss: '才华浪费，精神空虚' },
+          { text: '加入修女会，去印度传教', chosen: true, metrics: { wealth: { short: -2, long: -2 }, growth: { short: 2, long: 2 }, happiness: { short: 1, long: 2 }, risk: { short: 2, long: 1 }, influence: { short: 1, long: 2 } }, bestGain: '精神奉献，帮助无数人', worstLoss: '生活艰苦，远离家人' }
+        ],
+        outcome: '被派往印度大吉岭，在洛雷托修女会学校教书。',
+        outcomeType: 'good',
+        insight: '真正的幸福来自于为他人服务。' },
+      { age: 36, year: 1946, category: '职业转型', context: '在加尔各答看到穷人的苦难，"听到穷人的哭声"',
+        options: [
+          { text: '继续在修道院教书，安稳生活', chosen: false, metrics: { wealth: { short: 0, long: 0 }, growth: { short: -1, long: -1 }, happiness: { short: 0, long: -1 }, risk: { short: -1, long: 0 }, influence: { short: -1, long: -2 } }, bestGain: '生活安稳，风险低', worstLoss: '良心不安，精神痛苦' },
+          { text: '离开修道院，创立仁爱传教修女会', chosen: true, metrics: { wealth: { short: -2, long: -2 }, growth: { short: 2, long: 2 }, happiness: { short: 1, long: 2 }, risk: { short: 2, long: 1 }, influence: { short: 2, long: 2 } }, bestGain: '帮助无数穷人，获得诺贝尔和平奖', worstLoss: '生活艰苦，遭到质疑' },
+          { text: '在修道院内帮助穷人', chosen: false, metrics: { wealth: { short: -1, long: -1 }, growth: { short: 1, long: 0 }, happiness: { short: 0, long: 0 }, risk: { short: 0, long: 0 }, influence: { short: 0, long: -1 } }, bestGain: '帮助部分人', worstLoss: '影响力有限' }
+        ],
+        outcome: '获得教宗许可，离开修道院，创立仁爱传教修女会，专门服务"穷人中的穷人"。',
+        outcomeType: 'good',
+        insight: '真正的使命往往来自于对他人苦难的深切同情。' },
+      { age: 45, year: 1955, category: '长期深耕', context: '修女会面临资金短缺和外界质疑',
+        options: [
+          { text: '缩减规模，只服务部分穷人', chosen: false, metrics: { wealth: { short: 0, long: 0 }, growth: { short: -1, long: -1 }, happiness: { short: 0, long: -1 }, risk: { short: -1, long: 0 }, influence: { short: -1, long: -1 } }, bestGain: '降低风险，维持生存', worstLoss: '违背初心，影响力下降' },
+          { text: '坚持服务所有穷人，依靠信仰和捐赠', chosen: true, metrics: { wealth: { short: -1, long: 1 }, growth: { short: 1, long: 2 }, happiness: { short: 1, long: 2 }, risk: { short: 2, long: 1 }, influence: { short: 2, long: 2 } }, bestGain: '赢得信任，获得大量捐赠', worstLoss: '资金断裂，修女会解散' }
+        ],
+        outcome: '坚持"为穷人服务，不求回报"的原则，逐渐获得国际社会认可和支持。',
+        outcomeType: 'good',
+        insight: '坚持初心，即使困难重重，也会赢得信任。' },
+      { age: 69, year: 1979, category: '坚守信念', context: '获得诺贝尔和平奖',
+        options: [
+          { text: '接受奖金，改善修女会生活', chosen: false, metrics: { wealth: { short: 2, long: 1 }, growth: { short: 0, long: 0 }, happiness: { short: 1, long: 1 }, risk: { short: -1, long: 0 }, influence: { short: 1, long: 1 } }, bestGain: '改善修女会条件', worstLoss: '违背简朴原则' },
+          { text: '将奖金全部捐给穷人，拒绝奢华典礼', chosen: true, metrics: { wealth: { short: -1, long: -1 }, growth: { short: 0, long: 0 }, happiness: { short: 2, long: 2 }, risk: { short: 0, long: 0 }, influence: { short: 2, long: 2 } }, bestGain: '树立道德典范，感动世界', worstLoss: '修女会生活依然艰苦' }
+        ],
+        outcome: '将诺贝尔奖金全部捐给穷人，请求取消颁奖晚宴，"请把这笔钱给穷人"。',
+        outcomeType: 'good',
+        insight: '真正的伟大不在于获得荣誉，而在于如何使用荣誉。' },
+      { age: 87, year: 1997, category: '坚守信念', context: '在加尔各答去世',
+        options: [
+          { text: '后悔一生贫困，质疑信仰', chosen: false, metrics: { wealth: { short: 0, long: 0 }, growth: { short: -2, long: -2 }, happiness: { short: -2, long: -2 }, risk: { short: 0, long: 0 }, influence: { short: -2, long: -2 } }, bestGain: '无', worstLoss: '否定一生，精神崩溃' },
+          { text: '"我这一生没有白活"', chosen: true, metrics: { wealth: { short: 0, long: 0 }, growth: { short: 0, long: 0 }, happiness: { short: 2, long: 2 }, risk: { short: 0, long: 0 }, influence: { short: 2, long: 2 } }, bestGain: '精神圆满，千古流芳', worstLoss: '无' }
+        ],
+        outcome: '一生服务穷人，被尊为"贫民窟的圣人"。去世后被封为圣人。',
+        outcomeType: 'good',
+        insight: '人生的意义不在于拥有什么，而在于给予什么。' }
+    ]
+  },
+
+  thoreau: {
+    name: '梭罗', avatar: '🌲', lifespan: '1817-1862', era: 'modern', eraLabel: '19世纪',
+    subtitle: '瓦尔登湖畔的隐士，简单生活的践行者',
+    decisions: [
+      { age: 23, year: 1840, category: '职业转型', context: '哈佛毕业后，面临职业选择',
+        options: [
+          { text: '做牧师，获得稳定收入和社会地位', chosen: false, metrics: { wealth: { short: 2, long: 1 }, growth: { short: 0, long: -1 }, happiness: { short: -1, long: -1 }, risk: { short: -1, long: 0 }, influence: { short: 1, long: 0 } }, bestGain: '生活稳定，受人尊敬', worstLoss: '违背本心，精神痛苦' },
+          { text: '做教师，积累一些积蓄', chosen: false, metrics: { wealth: { short: 1, long: 0 }, growth: { short: 1, long: 0 }, happiness: { short: 0, long: 0 }, risk: { short: -1, long: 0 }, influence: { short: 0, long: 0 } }, bestGain: '收入稳定，有时间写作', worstLoss: '缺乏自由，受学校约束' },
+          { text: '追求简单生活，专注写作和思考', chosen: true, metrics: { wealth: { short: -2, long: -1 }, growth: { short: 2, long: 2 }, happiness: { short: 2, long: 2 }, risk: { short: 1, long: 1 }, influence: { short: 0, long: 2 } }, bestGain: '精神自由，创作《瓦尔登湖》', worstLoss: '生活贫困，被人误解' }
+        ],
+        outcome: '拒绝传统职业道路，选择做家庭教师、手艺人，保持精神独立。',
+        outcomeType: 'good',
+        insight: '真正的自由来自于减少物质需求。' },
+      { age: 28, year: 1845, category: '坚守信念', context: '决定在瓦尔登湖畔建造小木屋，独居两年',
+        options: [
+          { text: '继续在城市生活，寻找工作机会', chosen: false, metrics: { wealth: { short: 1, long: 0 }, growth: { short: 0, long: -1 }, happiness: { short: -1, long: -1 }, risk: { short: -1, long: 0 }, influence: { short: -1, long: -1 } }, bestGain: '生活便利，社交丰富', worstLoss: '精神空虚，缺乏创作灵感' },
+          { text: '在瓦尔登湖畔独居，实验简单生活', chosen: true, metrics: { wealth: { short: -2, long: -1 }, growth: { short: 2, long: 2 }, happiness: { short: 2, long: 2 }, risk: { short: 2, long: 1 }, influence: { short: 0, long: 2 } }, bestGain: '创作《瓦尔登湖》，影响后世', worstLoss: '被人嘲笑为"隐士"，生活艰苦' }
+        ],
+        outcome: '在瓦尔登湖畔独居两年两个月零两天，写下《瓦尔登湖》。"我步入丛林，因为我希望生活得有意义。"',
+        outcomeType: 'good',
+        insight: '有时候需要远离人群，才能听清内心的声音。' },
+      { age: 35, year: 1852, category: '长期深耕', context: '《瓦尔登湖》出版后销量不佳，生活依然贫困',
+        options: [
+          { text: '回归主流社会，寻找高薪工作', chosen: false, metrics: { wealth: { short: 2, long: 1 }, growth: { short: -1, long: -1 }, happiness: { short: 0, long: -1 }, risk: { short: -1, long: 0 }, influence: { short: -1, long: -1 } }, bestGain: '生活改善，经济稳定', worstLoss: '背叛初心，精神痛苦' },
+          { text: '坚持简单生活，继续写作和思考', chosen: true, metrics: { wealth: { short: -1, long: -1 }, growth: { short: 1, long: 1 }, happiness: { short: 1, long: 2 }, risk: { short: 1, long: 1 }, influence: { short: 0, long: 2 } }, bestGain: '精神圆满，作品流传后世', worstLoss: '生前贫困，被人遗忘' }
+        ],
+        outcome: '坚持简单生活原则，靠做铅笔、测量土地维生，继续写作。',
+        outcomeType: 'good',
+        insight: '真正的成功不是生前获得多少认可，而是死后留下什么。' },
+      { age: 44, year: 1861, category: '坚守信念', context: '患肺结核，生命即将结束',
+        options: [
+          { text: '后悔一生贫困，质疑选择', chosen: false, metrics: { wealth: { short: 0, long: 0 }, growth: { short: -2, long: -2 }, happiness: { short: -2, long: -2 }, risk: { short: 0, long: 0 }, influence: { short: -2, long: -2 } }, bestGain: '无', worstLoss: '否定一生，精神崩溃' },
+          { text: '"我一生都在践行自己的原则"', chosen: true, metrics: { wealth: { short: 0, long: 0 }, growth: { short: 0, long: 0 }, happiness: { short: 2, long: 2 }, risk: { short: 0, long: 0 }, influence: { short: 1, long: 2 } }, bestGain: '精神圆满，影响后世', worstLoss: '无' }
+        ],
+        outcome: '临终前说："我一生都在践行自己的原则。"《瓦尔登湖》后来成为影响世界的经典。',
+        outcomeType: 'good',
+        insight: '按照自己的原则生活，即使不被理解，也是成功的。' }
+    ]
+  }
+};
+
+// ===== STATE =====
+let currentMode = 'map'; // 'map' | 'single'
+let currentPerson = 'jackma';
+let activeCategory = null; // null = show all
+
+// Person order: ancient first, then modern
+function getOrderedPeople() {
+  const ancient = Object.entries(people).filter(([_, p]) => p.era === 'ancient');
+  const modern = Object.entries(people).filter(([_, p]) => p.era === 'modern');
+  return [...ancient, ...modern];
+}
+
+const personColors = {
+  susshi: '#a78bfa',
+  zengguofan: '#fb923c',
+  zhangyimou: '#f472b6',
+  stevejobs: '#34d399',
+  jackma: '#5b9aff',
+  taoyuanming: '#86efac',
+  teresa: '#fbbf24',
+  thoreau: '#60a5fa'
+};
+
+// ===== AGE AXIS CONFIG =====
+const AGE_MIN = 15;
+const AGE_MAX = 70;
+const AGE_TICKS = [20, 25, 30, 35, 40, 45, 50, 55, 60, 65];
+const AGE_SPAN = AGE_MAX - AGE_MIN;
+
+function ageToPct(age) {
+  return Math.max(2, Math.min(98, ((age - AGE_MIN) / AGE_SPAN) * 100));
+}
+
+// ===== MODE SWITCHING =====
+function setMode(mode) {
+  currentMode = mode;
+  document.getElementById('mapModeBtn').classList.toggle('active', mode === 'map');
+  document.getElementById('singleModeBtn').classList.toggle('active', mode === 'single');
+  document.getElementById('curveModeBtn').classList.toggle('active', mode === 'curve');
+  document.getElementById('unifiedMap').classList.toggle('active', mode === 'map');
+  document.getElementById('mainLayout').classList.toggle('active', mode === 'single');
+  document.getElementById('curveLayout').classList.toggle('active', mode === 'curve');
+  document.getElementById('categoryBar').classList.toggle('visible', mode === 'map');
+  if (mode === 'map') renderMap();
+  if (mode === 'single') renderSinglePerson();
+  if (mode === 'curve') initCurveView();
+}
+
+// ===== CATEGORY BAR =====
+function renderCategoryBar() {
+  const bar = document.getElementById('categoryBar');
+  // Count how many decisions per category
+  const catCounts = {};
+  Object.values(people).forEach(p => {
+    p.decisions.forEach(d => {
+      catCounts[d.category] = (catCounts[d.category] || 0) + 1;
+    });
+  });
+
+  let html = `<button class="cat-chip ${!activeCategory ? 'active' : ''}" onclick="filterCategory(null)" title="显示所有决策">全部决策</button>`;
+  Object.entries(CATEGORIES).forEach(([cat, info]) => {
+    if (catCounts[cat]) {
+      html += `<button class="cat-chip ${activeCategory === cat ? 'active' : ''}" onclick="filterCategory('${cat}')" title="${info.desc}">
+        ${info.icon} ${cat} <span class="cat-count">${catCounts[cat]}</span>
+      </button>`;
+    }
+  });
+  bar.innerHTML = html;
+}
+
+function filterCategory(cat) {
+  activeCategory = cat;
+  renderCategoryBar();
+  renderMap();
+}
+
+
+
+// ===== RENDER MAP =====
+function renderMap() {
+  const ordered = getOrderedPeople();
+
+  // Age axis
+  const axisEl = document.getElementById('mapAgeAxis');
+  axisEl.innerHTML = AGE_TICKS.map(age => {
+    const pct = ageToPct(age);
+    const stageLabel = age < 30 ? '青年' : age < 45 ? '壮年' : age < 60 ? '中年' : '晚年';
+    return `<div class="map-age-tick" style="left:${pct}%">
+      <div class="tick-line"></div>
+      <div class="tick-label">${age}岁</div>
+    </div>`;
+  }).join('');
+
+  // Person labels
+  const colEl = document.getElementById('mapPersonCol');
+  colEl.innerHTML = ordered.map(([key, p]) => {
+    const color = personColors[key] || '#d4a853';
+    return `<div class="map-person-item" onclick="selectPerson('${key}')">
+      <span class="mpi-avatar">${p.avatar}</span>
+      <div><div class="mpi-name">${p.name}</div><div class="mpi-era">${p.eraLabel} · ${p.lifespan}</div></div>
+      <div class="mpi-color-bar" style="background:${color}"></div>
+    </div>`;
+  }).join('');
+
+  // Timeline area
+  const areaEl = document.getElementById('mapTimeline');
+
+  // Grid lines
+  let gridHtml = AGE_TICKS.map(age => {
+    const pct = ageToPct(age);
+    return `<div class="map-grid-line" style="left:${pct}%"></div>`;
+  }).join('');
+
+  // Person rows
+  let rowsHtml = ordered.map(([key, p]) => {
+    const color = personColors[key] || '#d4a853';
+    const birthYear = parseInt(p.lifespan.split('-')[0].trim());
+    const deathPart = p.lifespan.split('-')[1].trim();
+    const deathYear = deathPart === '至今' ? 2026 : parseInt(deathPart);
+    const lifeStartPct = ageToPct(0);
+    const lifeEndPct = ageToPct(Math.min(deathYear - birthYear, AGE_MAX));
+    const lifeWidth = lifeEndPct - lifeStartPct;
+
+    let visibleDecisions = activeCategory
+      ? p.decisions.filter(d => d.category === activeCategory)
+      : p.decisions;
+
+    let dotsHtml = visibleDecisions.map(d => {
+      const dotPct = ageToPct(d.age);
+      const dotClass = d.outcomeType === 'good' ? 'dot-good' : d.outcomeType === 'bad' ? 'dot-bad' : 'dot-mixed';
+      const catInfo = CATEGORIES[d.category] || { icon: '📌', color: '#888' };
+      return `<div class="map-decision-group" style="left:${dotPct}%"
+        onclick="showDetail('${key}', ${d.year})">
+        <div class="map-dot ${dotClass}"></div>
+        <div class="map-cat-label">${catInfo.icon} ${d.category}</div>
+        <div class="map-year-label">${d.year}年</div>
+      </div>`;
+    }).join('');
+
+    return `<div class="map-row">
+      <div class="life-bar" style="left:${lifeStartPct}%;width:${lifeWidth}%;background:${color}"></div>
+      ${dotsHtml}
+    </div>`;
+  }).join('');
+
+  areaEl.innerHTML = gridHtml + rowsHtml;
+}
+
+// ===== DETAIL PANEL =====
+function showDetail(personKey, year) {
+  const p = people[personKey];
+  const d = p.decisions.find(dec => dec.year === year);
+  if (!d) return;
+
+  const catInfo = CATEGORIES[d.category] || { icon: '📌', color: '#888' };
+  const tagText = d.outcomeType === 'good' ? '正面' : d.outcomeType === 'bad' ? '负面' : '复杂';
+  const tagClass = d.outcomeType === 'good' ? 'tag-good' : d.outcomeType === 'bad' ? 'tag-bad' : 'tag-mixed';
+
+  // Find same-category decisions from other people
+  const sameCategoryDecisions = [];
+  Object.entries(people).forEach(([k, person]) => {
+    if (k === personKey) return;
+    person.decisions.forEach(dd => {
+      if (dd.category === d.category) {
+        sameCategoryDecisions.push({ personKey: k, person, decision: dd });
+      }
+    });
+  });
+
+  let html = `
+    <div class="detail-person-header">
+      <span class="dph-avatar">${p.avatar}</span>
+      <div>
+        <div class="dph-name">${p.name}</div>
+        <div class="dph-info">${p.eraLabel} · ${p.lifespan} · ${d.age}岁 · ${d.year}年</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+      <span style="font-size:14px;">${catInfo.icon}</span>
+      <span style="font-size:14px;font-weight:600;color:${catInfo.color}">${d.category}</span>
+      <span style="font-size:11px;color:var(--text-dim);">${catInfo.desc || ''}</span>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <span class="outcome-tag ${tagClass}" style="padding:3px 12px;border-radius:10px;font-size:11px;">结果：${tagText}</span>
+    </div>
+    <div class="detail-context">${d.context}</div>
+    <div class="detail-options">
+      ${d.options.map((o, i) => `
+        <div class="detail-option ${o.chosen ? 'is-chosen' : 'not-chosen'}">
+          <span class="do-marker">${o.chosen ? '✓' : String.fromCharCode(65 + i)}</span>
+          <div style="flex:1;">
+            <div>${o.text}</div>
+            ${o.bestGain ? `<div style="font-size:11px;color:var(--green);margin-top:4px;">📈 ${o.bestGain}</div>` : ''}
+            ${o.worstLoss ? `<div style="font-size:11px;color:var(--red);margin-top:2px;">📉 ${o.worstLoss}</div>` : ''}
+          </div>
+        </div>`).join('')}
+    </div>
+    ${d.options.some(o => o.metrics) ? `
+    <div class="decision-matrix" style="margin-bottom:16px;">
+      <div style="padding:8px 12px;font-size:11px;color:var(--gold);font-weight:600;border-bottom:1px solid rgba(212,168,83,0.15);">决策分析矩阵（短期/长期）</div>
+      <table>
+        <thead>
+          <tr>
+            <th style="text-align:left;padding-left:10px;">选项</th>
+            <th>💰财富</th>
+            <th>📈成长</th>
+            <th>😊幸福</th>
+            <th>⚡风险</th>
+            <th>🌟影响</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${d.options.map((o, i) => {
+            const isChosen = o.chosen;
+            const rowClass = isChosen ? 'matrix-chosen' : '';
+            let cells = '';
+            if (o.metrics) {
+              ['wealth','growth','happiness','risk','influence'].forEach(key => {
+                const val = o.metrics[key];
+                if (val) {
+                  const sClass = val.short > 0 ? 'matrix-score-high' : val.short === 0 ? 'matrix-score-medium' : 'matrix-score-low';
+                  const lClass = val.long > 0 ? 'matrix-score-high' : val.long === 0 ? 'matrix-score-medium' : 'matrix-score-low';
+                  cells += `<td><span class="matrix-score ${sClass}">${val.short > 0 ? '+' : ''}${val.short}</span>/<span class="matrix-score ${lClass}">${val.long > 0 ? '+' : ''}${val.long}</span></td>`;
+                } else {
+                  cells += `<td style="color:var(--text-dim);">—</td>`;
+                }
+              });
+            } else {
+              cells = `<td colspan="5" style="color:var(--text-dim);">无数据</td>`;
+            }
+            return `<tr class="${rowClass}"><td style="text-align:left;padding-left:10px;max-width:120px;font-size:10px;">${isChosen ? '✓ ' : ''}${o.text.substring(0, 15)}${o.text.length > 15 ? '...' : ''}</td>${cells}</tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>` : ''}
+    <div class="detail-outcome-box">
+      <div class="dob-label">决策结果</div>
+      <div class="dob-text">${d.outcome}</div>
+    </div>
+    ${d.insight ? `
+    <div class="detail-insight-box">
+      <div class="dib-label">💡 智慧启示</div>
+      <div class="dib-text">${d.insight}</div>
+    </div>` : ''}`;
+
+  // Cross-person comparison
+  if (sameCategoryDecisions.length > 0) {
+    html += `
+    <div class="detail-compare-section">
+      <h4>🔍 同类决策对比：${catInfo.icon} "${d.category}"</h4>
+      ${sameCategoryDecisions.map(({ personKey: k, person: pp, decision: dd }) => {
+        const chosenText = dd.options.find(o => o.chosen)?.text || '';
+        const dTagText = dd.outcomeType === 'good' ? '正面' : dd.outcomeType === 'bad' ? '负面' : '复杂';
+        const dTagClass = dd.outcomeType === 'good' ? 'tag-good' : dd.outcomeType === 'bad' ? 'tag-bad' : 'tag-mixed';
+        return `<div class="compare-person-row">
+          <span class="cpr-avatar">${pp.avatar}</span>
+          <div>
+            <div class="cpr-name">${pp.name} · ${dd.age}岁 · ${dd.year}年 <span class="outcome-tag ${dTagClass}" style="padding:1px 6px;border-radius:8px;font-size:10px;">${dTagText}</span></div>
+            <div class="cpr-context">${dd.context}</div>
+            <div class="cpr-choice">✓ ${chosenText}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
+  document.getElementById('detailContent').innerHTML = html;
+  document.getElementById('detailOverlay').classList.add('visible');
+  document.getElementById('detailPanel').classList.add('visible');
+}
+
+function closeDetail() {
+  document.getElementById('detailOverlay').classList.remove('visible');
+  document.getElementById('detailPanel').classList.remove('visible');
+}
+
+// ===== SINGLE PERSON DECISION PATH VIEW =====
+function selectPerson(key) {
+  currentPerson = key;
+  setMode('single');
+}
+
+function renderSinglePerson() {
+  const person = people[currentPerson];
+  const color = personColors[currentPerson] || '#d4a853';
+
+  // Header
+  document.getElementById('singleHeader').innerHTML = `
+    <div class="single-avatar">${person.avatar}</div>
+    <div class="single-info">
+      <h2>${person.name}</h2>
+      <div class="subtitle">${person.subtitle}</div>
+      <div class="lifespan">${person.eraLabel} · ${person.lifespan}</div>
+    </div>`;
+
+  // Hide age axis for timeline layout
+  const axisEl = document.getElementById('pathAgeAxis');
+  axisEl.style.display = 'none';
+
+  // Path body - vertical timeline
+  const bodyEl = document.getElementById('pathBody');
+  const decisions = person.decisions;
+
+  const METRIC_LABELS = {
+    wealth: { icon: '💰', label: '财富' },
+    growth: { icon: '📈', label: '成长' },
+    happiness: { icon: '😊', label: '幸福' },
+    risk: { icon: '⚡', label: '风险' },
+    influence: { icon: '🌟', label: '影响' }
+  };
+
+  function metricColor(val) {
+    if (val >= 4) return 'metric-high';
+    if (val >= 3) return 'metric-medium';
+    return 'metric-low';
+  }
+
+  function metricBarColor(val) {
+    if (val >= 4) return 'var(--green)';
+    if (val >= 3) return 'var(--orange)';
+    return 'var(--red)';
+  }
+
+  // Build vertical timeline HTML
+  let timelineHtml = '<div class="vertical-timeline">';
+
+  decisions.forEach((d, di) => {
+    const catInfo = CATEGORIES[d.category] || { icon: '📌', color: '#888' };
+    const tagText = d.outcomeType === 'good' ? '正面' : d.outcomeType === 'bad' ? '负面' : '复杂';
+    const badgeClass = d.outcomeType === 'good' ? 'good' : d.outcomeType === 'bad' ? 'bad' : 'mixed';
+
+    // Timeline node
+    timelineHtml += `<div class="timeline-item" data-di="${di}">
+      <div class="timeline-left">
+        <div class="timeline-age">${d.age}岁</div>
+        <div class="timeline-year">${d.year}年</div>
+      </div>
+      <div class="timeline-connector">
+        <div class="timeline-dot"></div>
+        <div class="timeline-line"></div>
+      </div>
+      <div class="timeline-content">
+        <div class="timeline-category">
+          <span>${catInfo.icon}</span>
+          <span>${d.category}</span>
+        </div>
+        <div class="timeline-context">${d.context}</div>`;
+
+    // Decision Matrix Table
+    const opts = d.options;
+    const hasMetrics = opts.some(o => o.metrics);
+    if (hasMetrics) {
+      timelineHtml += `<div class="decision-matrix">
+        <table>
+          <thead>
+            <tr>
+              <th>决策选项</th>
+              <th>💰 财富<br><small style="color:var(--text-dim);font-weight:normal;">短期/长期</small></th>
+              <th>📈 成长<br><small style="color:var(--text-dim);font-weight:normal;">短期/长期</small></th>
+              <th>😊 幸福<br><small style="color:var(--text-dim);font-weight:normal;">短期/长期</small></th>
+              <th>⚡ 风险<br><small style="color:var(--text-dim);font-weight:normal;">+高/-低</small></th>
+              <th>🌟 影响<br><small style="color:var(--text-dim);font-weight:normal;">短期/长期</small></th>
+            </tr>
+          </thead>
+          <tbody>`;
+      
+      opts.forEach((o, oi) => {
+        const isChosen = o.chosen;
+        const rowClass = isChosen ? 'matrix-chosen' : '';
+        timelineHtml += `<tr class="${rowClass}">
+          <td>${isChosen ? '✓ ' : ''}${o.text}</td>`;
+        
+        if (o.metrics) {
+          Object.entries(o.metrics).forEach(([key, val]) => {
+            const shortVal = val.short || 0;
+            const longVal = val.long || 0;
+            const shortClass = shortVal > 0 ? 'matrix-score-high' : shortVal === 0 ? 'matrix-score-medium' : 'matrix-score-low';
+            const longClass = longVal > 0 ? 'matrix-score-high' : longVal === 0 ? 'matrix-score-medium' : 'matrix-score-low';
+            timelineHtml += `<td><span class="matrix-score ${shortClass}">${shortVal > 0 ? '+' : ''}${shortVal}</span> / <span class="matrix-score ${longClass}">${longVal > 0 ? '+' : ''}${longVal}</span></td>`;
+          });
+        } else {
+          timelineHtml += `<td colspan="5" style="color:var(--text-dim);font-size:10px;">无数据</td>`;
+        }
+        
+        timelineHtml += `</tr>`;
+      });
+      
+      timelineHtml += `</tbody></table>
+        <div class="matrix-summary">
+          <span class="matrix-summary-item">💰 财富：物质收益</span>
+          <span class="matrix-summary-item">📈 成长：能力提升</span>
+          <span class="matrix-summary-item">😊 幸福：内心满足</span>
+          <span class="matrix-summary-item">⚡ 风险：+高/-低</span>
+          <span class="matrix-summary-item">🌟 影响：社会价值</span>
+        </div>
+      </div>`;
+    }
+
+    timelineHtml += `<div class="timeline-options">`;
+    opts.forEach((o, oi) => {
+      const isChosen = o.chosen;
+      timelineHtml += `<div class="option-node ${isChosen ? 'is-chosen' : 'not-chosen'}">
+        <div class="opt-label">${isChosen ? '✓ 实际选择' : '选项 ' + String.fromCharCode(65 + oi)}</div>
+        <div class="opt-text">${o.text}</div>`;
+
+      if (o.bestGain || o.worstLoss) {
+        timelineHtml += `<div class="gain-loss-panel">`;
+        if (o.bestGain) {
+          timelineHtml += `<div class="gain-loss-row">
+            <span class="gain-loss-icon">📈</span>
+            <span class="gain-loss-label">最大得：</span>
+            <span class="gain-loss-text">${o.bestGain}</span>
+          </div>`;
+        }
+        if (o.worstLoss) {
+          timelineHtml += `<div class="gain-loss-row">
+            <span class="gain-loss-icon">📉</span>
+            <span class="gain-loss-label">最大失：</span>
+            <span class="gain-loss-text">${o.worstLoss}</span>
+          </div>`;
+        }
+        timelineHtml += `</div>`;
+      }
+
+      if (isChosen) {
+        timelineHtml += `<div class="outcome-badge ${badgeClass}">${tagText}</div>`;
+      }
+
+      timelineHtml += `</div>`;
+    });
+
+    timelineHtml += `</div>
+        <div class="timeline-outcome">${d.outcome}</div>
+        ${d.insight ? `<div class="timeline-insight">💡 ${d.insight}</div>` : ''}
+      </div>
+    </div>`;
+  });
+
+  timelineHtml += '</div>';
+  bodyEl.innerHTML = timelineHtml;
+  bodyEl.style.minHeight = 'auto';
+}
+
+// ===== INIT =====
+// ===== SCORE CURVE VIEW =====
+let curveSelectedPeople = ['susshi'];
+let curveSelectedDimensions = ['wealth', 'growth', 'happiness', 'risk', 'influence'];
+let curveColorMode = 'person'; // 'person' or 'dimension'
+let curveTimeRange = 'short'; // 'short' or 'long'
+
+const DIMENSION_COLORS = {
+  wealth: '#f0d48a',
+  growth: '#5b9aff',
+  happiness: '#34d399',
+  risk: '#f87171',
+  influence: '#a78bfa'
+};
+
+const PERSON_COLORS = {
+  susshi: '#f0d48a',
+  zengguofan: '#5b9aff',
+  zhangyimou: '#34d399',
+  jobs: '#a78bfa',
+  jackma: '#fb923c',
+  wangyangming: '#ec4899',
+  renzhengfei: '#14b8a6',
+  elonmusk: '#8b5cf6',
+  libai: '#f59e0b'
+};
+
+function setColorMode(mode) {
+  curveColorMode = mode;
+  document.querySelectorAll('.color-mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === mode);
+  });
+  drawScoreCurves();
+}
+
+function setTimeRange(range) {
+  curveTimeRange = range;
+  document.querySelectorAll('.time-range-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.range === range);
+  });
+  drawScoreCurves();
+}
+
+function initCurveView() {
+  renderPersonCheckboxes();
+  renderDimensionCheckboxes();
+  drawScoreCurves();
+}
+
+function renderPersonCheckboxes() {
+  const container = document.getElementById('personCheckboxes');
+  let html = '';
+  Object.entries(people).forEach(([key, person]) => {
+    const checked = curveSelectedPeople.includes(key) ? 'checked' : '';
+    const checkedClass = curveSelectedPeople.includes(key) ? 'checked' : '';
+    html += `<label class="person-checkbox ${checkedClass}">
+      <input type="checkbox" value="${key}" ${checked} onchange="togglePersonCurve('${key}')">
+      <span>${person.avatar} ${person.name}</span>
+    </label>`;
+  });
+  container.innerHTML = html;
+}
+
+function renderDimensionCheckboxes() {
+  const container = document.getElementById('dimensionCheckboxes');
+  const dimensions = [
+    { key: 'wealth', label: '💰 财富' },
+    { key: 'growth', label: '📈 成长' },
+    { key: 'happiness', label: '😊 幸福' },
+    { key: 'risk', label: '⚡ 风险(+高)' },
+    { key: 'influence', label: '🌟 影响' }
+  ];
+  let html = '';
+  dimensions.forEach(dim => {
+    const checked = curveSelectedDimensions.includes(dim.key) ? 'checked' : '';
+    const checkedClass = curveSelectedDimensions.includes(dim.key) ? 'checked' : '';
+    html += `<label class="dimension-checkbox ${checkedClass}">
+      <input type="checkbox" value="${dim.key}" ${checked} onchange="toggleDimensionCurve('${dim.key}')">
+      <span>${dim.label}</span>
+    </label>`;
+  });
+  container.innerHTML = html;
+}
+
+function togglePersonCurve(key) {
+  const idx = curveSelectedPeople.indexOf(key);
+  if (idx >= 0) {
+    curveSelectedPeople.splice(idx, 1);
+  } else {
+    curveSelectedPeople.push(key);
+  }
+  renderPersonCheckboxes();
+  drawScoreCurves();
+}
+
+function toggleDimensionCurve(key) {
+  const idx = curveSelectedDimensions.indexOf(key);
+  if (idx >= 0) {
+    curveSelectedDimensions.splice(idx, 1);
+  } else {
+    curveSelectedDimensions.push(key);
+  }
+  renderDimensionCheckboxes();
+  drawScoreCurves();
+}
+
+function extractPersonCurveData(personKey) {
+  const person = people[personKey];
+  if (!person) return [];
+  
+  const data = [];
+  person.decisions.forEach(decision => {
+    const chosenOption = decision.options.find(o => o.chosen);
+    if (chosenOption && chosenOption.metrics) {
+      data.push({
+        age: decision.age,
+        year: decision.year,
+        category: decision.category,
+        metrics: chosenOption.metrics
+      });
+    }
+  });
+  
+  return data.sort((a, b) => a.age - b.age);
+}
+
+function drawScoreCurves() {
+  const canvas = document.getElementById('scoreCurveCanvas');
+  const ctx = canvas.getContext('2d');
+  
+  const width = canvas.width;
+  const height = canvas.height;
+  const padding = { top: 60, right: 40, bottom: 80, left: 80 };
+  
+  ctx.clearRect(0, 0, width, height);
+  
+  if (curveSelectedPeople.length === 0 || curveSelectedDimensions.length === 0) {
+    ctx.fillStyle = '#7a8498';
+    ctx.font = '16px "Noto Sans SC"';
+    ctx.textAlign = 'center';
+    ctx.fillText('请至少选择一个人物和一个维度', width / 2, height / 2);
+    return;
+  }
+  
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+  
+  const allData = [];
+  curveSelectedPeople.forEach(personKey => {
+    const data = extractPersonCurveData(personKey);
+    allData.push(...data);
+  });
+  
+  if (allData.length === 0) {
+    ctx.fillStyle = '#7a8498';
+    ctx.font = '16px "Noto Sans SC"';
+    ctx.textAlign = 'center';
+    ctx.fillText('暂无数据', width / 2, height / 2);
+    return;
+  }
+  
+  const minAge = Math.min(...allData.map(d => d.age));
+  const maxAge = Math.max(...allData.map(d => d.age));
+  const ageRange = maxAge - minAge || 1;
+  
+  ctx.strokeStyle = 'rgba(212, 168, 83, 0.2)';
+  ctx.lineWidth = 1;
+  
+  // Y轴刻度：-2到+2（-2在底部，+2在顶部）
+  const yTicks = [-2, -1, 0, 1, 2];
+  
+  yTicks.forEach((tickVal, i) => {
+    const normalizedTick = (tickVal + 2) / 4; // -2->0, 0->0.5, +2->1
+    const y = padding.top + chartHeight - normalizedTick * chartHeight;
+    ctx.beginPath();
+    ctx.moveTo(padding.left, y);
+    ctx.lineTo(width - padding.right, y);
+    ctx.stroke();
+    
+    ctx.fillStyle = tickVal === 0 ? '#d4a853' : '#7a8498';
+    ctx.font = tickVal === 0 ? 'bold 13px "Noto Sans SC"' : '12px "Noto Sans SC"';
+    ctx.textAlign = 'right';
+    ctx.fillText((tickVal > 0 ? '+' : '') + tickVal.toString(), padding.left - 10, y + 4);
+  });
+  
+  // 零线高亮
+  const zeroY = padding.top + chartHeight / 2;
+  ctx.strokeStyle = 'rgba(212, 168, 83, 0.4)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([5, 5]);
+  ctx.beginPath();
+  ctx.moveTo(padding.left, zeroY);
+  ctx.lineTo(width - padding.right, zeroY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  
+  const ageStep = chartWidth / Math.max(1, ageRange);
+  for (let age = minAge; age <= maxAge; age += Math.max(1, Math.floor(ageRange / 10))) {
+    const x = padding.left + (age - minAge) * ageStep;
+    ctx.strokeStyle = 'rgba(212, 168, 83, 0.1)';
+    ctx.beginPath();
+    ctx.moveTo(x, padding.top);
+    ctx.lineTo(x, height - padding.bottom);
+    ctx.stroke();
+    
+    ctx.fillStyle = '#7a8498';
+    ctx.font = '12px "Noto Sans SC"';
+    ctx.textAlign = 'center';
+    ctx.fillText(age + '岁', x, height - padding.bottom + 20);
+  }
+  
+  // 主标题
+  ctx.fillStyle = '#d4a853';
+  ctx.font = 'bold 18px "Noto Serif SC"';
+  ctx.textAlign = 'center';
+  const timeRangeText = curveTimeRange === 'short' ? '短期影响（1-2年内）' : '长期影响（5年以上）';
+  ctx.fillText(`决策变化分曲线 · ${timeRangeText}`, width / 2, 28);
+
+  // 副标题：解释评分含义
+  ctx.fillStyle = '#7a8498';
+  ctx.font = '11px "Noto Sans SC"';
+  ctx.textAlign = 'center';
+  ctx.fillText('+2 大幅提升 | +1 提升 | 0 无变化 | -1 下降 | -2 大幅下降', width / 2, 48);
+
+  // X轴标签
+  ctx.fillStyle = '#7a8498';
+  ctx.font = '12px "Noto Sans SC"';
+  ctx.textAlign = 'center';
+  ctx.fillText('决策时的年龄', width / 2, height - 15);
+
+  // Y轴标签
+  ctx.save();
+  ctx.translate(18, height / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText('变化幅度', 0, 0);
+  ctx.restore();
+  
+  curveSelectedPeople.forEach((personKey, personIdx) => {
+    const personData = extractPersonCurveData(personKey);
+    const personColor = PERSON_COLORS[personKey] || '#d4a853';
+    
+    curveSelectedDimensions.forEach((dimKey, dimIdx) => {
+      const dimColor = DIMENSION_COLORS[dimKey];
+      const offset = (dimIdx - (curveSelectedDimensions.length - 1) / 2) * 8;
+      
+      // 根据颜色模式选择颜色
+      const lineColor = curveColorMode === 'person' ? personColor : dimColor;
+      
+      ctx.strokeStyle = lineColor;
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.7;
+      
+      ctx.beginPath();
+      let started = false;
+      
+      personData.forEach((point, idx) => {
+        const x = padding.left + (point.age - minAge) * ageStep;
+        const metricObj = point.metrics[dimKey];
+        const value = metricObj ? (metricObj[curveTimeRange] || 0) : 0;
+        // 映射-2到+2到图表高度
+        const normalizedValue = (value + 2) / 4; // -2->0, 0->0.5, +2->1
+        const y = padding.top + chartHeight - normalizedValue * chartHeight + offset;
+        
+        if (!started) {
+          ctx.moveTo(x, y);
+          started = true;
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+      
+      ctx.stroke();
+      
+      personData.forEach((point, idx) => {
+        const x = padding.left + (point.age - minAge) * ageStep;
+        const metricObj = point.metrics[dimKey];
+        const value = metricObj ? (metricObj[curveTimeRange] || 0) : 0;
+        const normalizedValue = (value + 2) / 4;
+        const y = padding.top + chartHeight - normalizedValue * chartHeight + offset;
+        
+        ctx.fillStyle = lineColor;
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#0c1017';
+        ctx.beginPath();
+        ctx.arc(x, y, 2, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      
+      ctx.globalAlpha = 1;
+    });
+  });
+  
+  renderCurveLegend();
+}
+
+function renderCurveLegend() {
+  const container = document.getElementById('curveLegend');
+  let html = '<div style="display:flex;gap:20px;flex-wrap:wrap;justify-content:center;">';
+  
+  html += '<div style="display:flex;gap:12px;align-items:center;"><span style="color:#7a8498;font-size:12px;">人物：</span>';
+  curveSelectedPeople.forEach(personKey => {
+    const person = people[personKey];
+    const color = PERSON_COLORS[personKey] || '#d4a853';
+    html += `<div style="display:flex;align-items:center;gap:6px;">
+      <div style="width:20px;height:3px;background:${color};border-radius:2px;"></div>
+      <span style="font-size:12px;color:#d4dae6;">${person.avatar} ${person.name}</span>
+    </div>`;
+  });
+  html += '</div>';
+  
+  html += '<div style="display:flex;gap:12px;align-items:center;"><span style="color:#7a8498;font-size:12px;">维度：</span>';
+  curveSelectedDimensions.forEach(dimKey => {
+    const dimLabels = {
+      wealth: '💰 财富',
+      growth: '📈 成长',
+      happiness: '😊 幸福',
+      risk: '⚡ 风险',
+      influence: '🌟 影响'
+    };
+    const color = DIMENSION_COLORS[dimKey] || '#d4a853';
+    html += `<div style="display:flex;align-items:center;gap:6px;">
+      <div style="width:20px;height:3px;background:${color};border-radius:2px;"></div>
+      <span style="font-size:12px;color:#d4dae6;">${dimLabels[dimKey]}</span>
+    </div>`;
+  });
+  html += '</div>';
+  
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// ===== CURVE TOOLTIP =====
+(function() {
+  const canvas = document.getElementById('scoreCurveCanvas');
+  const tooltip = document.getElementById('curveTooltip');
+
+  canvas.addEventListener('click', function(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const mx = (e.clientX - rect.left) * scaleX;
+    const my = (e.clientY - rect.top) * scaleY;
+
+    const width = canvas.width;
+    const height = canvas.height;
+    const padding = { top: 60, right: 40, bottom: 80, left: 80 };
+    const chartWidth = width - padding.left - padding.right;
+    const chartHeight = height - padding.top - padding.bottom;
+
+    const allData = [];
+    curveSelectedPeople.forEach(personKey => {
+      const data = extractPersonCurveData(personKey);
+      data.forEach(d => { d.personKey = personKey; });
+      allData.push(...data);
+    });
+
+    if (allData.length === 0) { tooltip.style.display = 'none'; return; }
+
+    const minAge = Math.min(...allData.map(d => d.age));
+    const maxAge = Math.max(...allData.map(d => d.age));
+    const ageRange = maxAge - minAge || 1;
+    const ageStep = chartWidth / Math.max(1, ageRange);
+
+    let closest = null;
+    let minDist = 30 * scaleX; // scale threshold
+
+    allData.forEach(d => {
+      const x = padding.left + (d.age - minAge) * ageStep;
+      curveSelectedDimensions.forEach((dimKey, dimIdx) => {
+        const offset = (dimIdx - (curveSelectedDimensions.length - 1) / 2) * 8;
+        const metricObj = d.metrics[dimKey];
+        const value = metricObj ? (metricObj[curveTimeRange] || 0) : 0;
+        const normalizedValue = (value + 2) / 4;
+        const y = padding.top + chartHeight - normalizedValue * chartHeight + offset;
+
+        const dist = Math.sqrt((mx - x) ** 2 + (my - y) ** 2);
+        if (dist < minDist) {
+          minDist = dist;
+          closest = { d, dimKey, value, x, y };
+        }
+      });
+    });
+
+    if (closest) {
+      const person = people[closest.d.personKey];
+      const dimLabels = { wealth: "💰 财富", growth: "📈 成长", happiness: "😊 幸福", risk: "⚡️ 风险", influence: "🌟 影响" };
+      const chosenOption = person.decisions.find(dec => dec.year === closest.d.year)?.options.find(o => o.chosen);
+      const decisionText = chosenOption ? chosenOption.text : '';
+
+      let html = `<div style="font-weight:600;color:#d4a853;margin-bottom:4px;">${person.avatar} ${person.name} · ${closest.d.age}岁 · ${closest.d.year}年</div>`;
+      html += `<div style="font-size:12px;color:#d4dae6;margin-bottom:4px;">${closest.d.category}</div>`;
+      if (decisionText) {
+        html += `<div style="font-size:11px;color:#a0aab8;margin-bottom:6px;">✓ ${decisionText}</div>`;
+      }
+      const valStr = closest.value > 0 ? `+${closest.value}` : `${closest.value}`;
+      html += `<div style="font-size:12px;color:${closest.value > 0 ? '#34d399' : closest.value < 0 ? '#f87171' : '#d4a853'};">${dimLabels[closest.dimKey] || closest.dimKey}：${valStr}（${curveTimeRange === 'short' ? '短期' : '长期'}）</div>`;
+
+      tooltip.innerHTML = html;
+      tooltip.style.display = 'block';
+
+      // Position in display coordinates
+      let tx = (closest.x / scaleX) + 15;
+      let ty = (closest.y / scaleY) - 10;
+      if (tx + 280 > rect.width) tx = (closest.x / scaleX) - 290;
+      if (ty < 0) ty = 10;
+      tooltip.style.left = tx + 'px';
+      tooltip.style.top = ty + 'px';
+    } else {
+      tooltip.style.display = 'none';
+    }
+  });
+
+  canvas.addEventListener('mouseleave', function() {
+    // keep tooltip visible after click; only hide when clicking elsewhere
+  });
+
+  document.addEventListener('click', function(e) {
+    if (!canvas.contains(e.target) && !tooltip.contains(e.target)) {
+      tooltip.style.display = 'none';
+    }
+  });
+})();
+
+renderCategoryBar();
+renderMap();
+</script>
+</body>
+</html>
